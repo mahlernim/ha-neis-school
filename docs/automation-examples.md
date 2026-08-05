@@ -5,8 +5,9 @@
 1. **설정 → 자동화 및 장면 → 자동화 만들기 → 새 자동화 만들기**를 엽니다.
 2. 오른쪽 위 점 3개 메뉴에서 **YAML로 편집**을 선택합니다.
 3. 원하는 예제를 붙여 넣습니다.
-4. 아래 예제의 세 엔티티 ID를 자신의 환경에 맞게 바꿉니다.
+4. 아래 예제에서 사용하는 엔티티 ID를 자신의 환경에 맞게 바꿉니다.
    - `sensor.my_school_lunch_today` 같은 NEIS School 센서
+   - `binary_sensor.my_school_schoolday` 같은 NEIS School 등교일 센서
    - `tts.home_assistant_cloud` 같은 TTS 엔진
    - `media_player.living_room` 같은 스피커
 
@@ -15,7 +16,7 @@
 
 ## 급식 메뉴 안내
 
-매일 오전 7시에 오늘 중식이 있으면 정리된 `menu_tts` 문장을 읽습니다.
+등교일 오전 7시에 오늘 중식이 있으면 정리된 `menu_tts` 문장을 읽습니다.
 
 ```yaml
 alias: 학교 중식 안내
@@ -24,6 +25,12 @@ triggers:
   - trigger: time
     at: "07:00:00"
 conditions:
+  - condition: state
+    entity_id: binary_sensor.my_school_schoolday
+    state: "on"
+  - condition: state
+    entity_id: sensor.my_school_lunch_today
+    state: available
   - condition: template
     value_template: >-
       {{ state_attr('sensor.my_school_lunch_today', 'menu_tts')
@@ -42,7 +49,7 @@ mode: single
 
 ## 오늘 시간표 안내
 
-평일 오전 7시 5분에 유효한 시간표가 있을 때만 `timetable_tts`를 읽습니다.
+등교일 오전 7시 5분에 유효한 시간표가 있을 때만 `timetable_tts`를 읽습니다.
 과목이나 교시 정보가 불완전한 항목은 안내에서 제외됩니다.
 
 ```yaml
@@ -52,13 +59,9 @@ triggers:
   - trigger: time
     at: "07:05:00"
 conditions:
-  - condition: time
-    weekday:
-      - mon
-      - tue
-      - wed
-      - thu
-      - fri
+  - condition: state
+    entity_id: binary_sensor.my_school_schoolday
+    state: "on"
   - condition: template
     value_template: >-
       {{ state_attr('sensor.my_school_timetable_today', 'timetable_tts')
@@ -77,8 +80,8 @@ mode: single
 
 ## 아침 학교생활 브리핑
 
-급식, 학사일정과 시간표 중 실제 문장이 있는 항목만 이어 붙여 한 번에 읽습니다.
-센서 값이 없거나 `unavailable`인 항목은 자연스럽게 건너뜁니다.
+등교일에 급식, 학사일정과 시간표 중 실제 문장이 있는 항목만 이어 붙여 한 번에
+읽습니다. 센서 값이 없거나 `unavailable`인 항목은 자연스럽게 건너뜁니다.
 
 ```yaml
 alias: 아침 학교생활 브리핑
@@ -87,6 +90,9 @@ triggers:
   - trigger: time
     at: "07:00:00"
 conditions:
+  - condition: state
+    entity_id: binary_sensor.my_school_schoolday
+    state: "on"
   - condition: template
     value_template: >-
       {% set values = [
