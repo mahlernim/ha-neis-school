@@ -1,8 +1,8 @@
 {
   "country": "KR",
   "filename": "neis_school.zip",
-  "name": "홈어시스턴트 나이스 학교생활",
+  "hide_default_branch": true,
   "homeassistant": "2025.12.0",
-  "render_readme": true,
+  "name": "홈어시스턴트 나이스 학교생활",
   "zip_release": true
 }

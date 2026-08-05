@@ -6,10 +6,10 @@ from datetime import date, timedelta
 from typing import Any
 
 from homeassistant.components.binary_sensor import BinarySensorEntity
-from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
+from . import NeisSchoolConfigEntry
 from .coordinator import NeisSchoolCoordinator
 from .entity import NeisSchoolEntity
 from .helpers import evaluate_schoolday
@@ -17,11 +17,11 @@ from .helpers import evaluate_schoolday
 
 async def async_setup_entry(
     hass: HomeAssistant,
-    entry: ConfigEntry,
+    entry: NeisSchoolConfigEntry,
     async_add_entities: AddConfigEntryEntitiesCallback,
 ) -> None:
     """Set up schoolday binary sensors."""
-    coordinator: NeisSchoolCoordinator = entry.runtime_data
+    coordinator = entry.runtime_data
     async_add_entities(
         [
             NeisSchooldayBinarySensor(coordinator, 0),
@@ -40,7 +40,7 @@ class NeisSchooldayBinarySensor(NeisSchoolEntity, BinarySensorEntity):
         self._day_offset = day_offset
         day_key = "today" if day_offset == 0 else "tomorrow"
         self._attr_translation_key = f"schoolday_{day_key}"
-        self._attr_unique_id = f"{coordinator.school_code}_schoolday_{day_key}"
+        self._attr_unique_id = f"{coordinator.entry.entry_id}_schoolday_{day_key}"
 
     @property
     def available(self) -> bool:

@@ -8,11 +8,12 @@ from datetime import timedelta
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
+from homeassistant.exceptions import ConfigEntryAuthFailed
 from homeassistant.helpers import issue_registry as ir
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 from homeassistant.util import dt as dt_util
 
-from .api import NeisAPI, NeisError
+from .api import NeisAPI, NeisAuthenticationError, NeisError
 from .const import (
     CONF_API_KEY,
     CONF_CLASS_NAME,
@@ -47,6 +48,9 @@ class NeisSchoolCoordinator(DataUpdateCoordinator[NeisCoordinatorData]):
         self.school_kind = str(entry.data[CONF_SCHOOL_KIND])
         self.grade = int(entry.options[CONF_GRADE])
         self.class_name = str(entry.options[CONF_CLASS_NAME])
+        self.last_attempt = None
+        self.last_error: str | None = None
+        self.consecutive_failures = 0
         super().__init__(
             hass,
             _LOGGER,
@@ -59,6 +63,7 @@ class NeisSchoolCoordinator(DataUpdateCoordinator[NeisCoordinatorData]):
         """Fetch meals, schedules, and timetables."""
         today = dt_util.now().date()
         tomorrow = today + timedelta(days=1)
+        self.last_attempt = dt_util.utcnow()
         try:
             results = await asyncio.gather(
                 self.api.get_meals(self.office_code, self.school_code, today),
@@ -85,16 +90,13 @@ class NeisSchoolCoordinator(DataUpdateCoordinator[NeisCoordinatorData]):
                 ),
                 self._async_upcoming_schedule(today),
             )
+        except NeisAuthenticationError as err:
+            self._record_failure(err)
+            raise ConfigEntryAuthFailed(
+                "NEIS API key is invalid or restricted"
+            ) from err
         except NeisError as err:
-            if self.data is not None and self.data.local_date == today:
-                self.data.last_attempt = dt_util.utcnow()
-                self.data.last_error = type(err).__name__
-                self.data.retained_after_error = True
-                _LOGGER.warning(
-                    "NEIS update failed (%s), preserving today's prior data",
-                    type(err).__name__,
-                )
-                return self.data
+            self._record_failure(err)
             raise UpdateFailed("Unable to update NEIS school data") from err
 
         (
@@ -121,6 +123,9 @@ class NeisSchoolCoordinator(DataUpdateCoordinator[NeisCoordinatorData]):
         }
         self._update_incomplete_issue(sources)
         completed_at = dt_util.utcnow()
+        self.last_attempt = completed_at
+        self.last_error = None
+        self.consecutive_failures = 0
         return NeisCoordinatorData(
             local_date=today,
             meals={today: meals_today, tomorrow: meals_tomorrow},
@@ -143,6 +148,13 @@ class NeisSchoolCoordinator(DataUpdateCoordinator[NeisCoordinatorData]):
             today + timedelta(days=SCHEDULE_LOOKAHEAD_DAYS),
         )
 
+    def _record_failure(self, err: NeisError) -> None:
+        """Record a sanitized failed refresh for diagnostics."""
+        self.last_attempt = dt_util.utcnow()
+        self.last_error = type(err).__name__
+        self.consecutive_failures += 1
+        _LOGGER.warning("NEIS update failed (%s)", self.last_error)
+
     def _update_incomplete_issue(self, sources: set[str]) -> None:
         """Create or clear the limited-data repair issue."""
         issue_id = f"{ISSUE_INCOMPLETE_DATA}_{self.entry.entry_id}"
@@ -162,7 +174,15 @@ class NeisSchoolCoordinator(DataUpdateCoordinator[NeisCoordinatorData]):
         else:
             ir.async_delete_issue(self.hass, DOMAIN, issue_id)
 
+    def clear_incomplete_issue(self) -> None:
+        """Remove the entry-scoped repair issue when the entry unloads."""
+        ir.async_delete_issue(
+            self.hass,
+            DOMAIN,
+            f"{ISSUE_INCOMPLETE_DATA}_{self.entry.entry_id}",
+        )
+
     def configured_api_key(self) -> str | None:
         """Return the current credential without exposing it elsewhere."""
-        value = self.entry.options.get(CONF_API_KEY)
+        value = self.entry.data.get(CONF_API_KEY, self.entry.options.get(CONF_API_KEY))
         return str(value) if value else None

@@ -10,7 +10,14 @@ from typing import Any
 
 from aiohttp import ClientError, ClientSession
 
-from .const import MAX_PAGES, PAGE_SIZE, REQUEST_TIMEOUT_SECONDS, SCHOOL_KIND_ENDPOINTS
+from .const import (
+    AUTH_ERROR_CODES,
+    MAX_PAGES,
+    PAGE_SIZE,
+    RATE_LIMIT_ERROR_CODES,
+    REQUEST_TIMEOUT_SECONDS,
+    SCHOOL_KIND_ENDPOINTS,
+)
 from .models import NeisResponse
 
 BASE_URL = "https://open.neis.go.kr/hub"
@@ -31,6 +38,23 @@ class NeisApiError(NeisError):
         """Initialize a sanitized API error."""
         super().__init__(f"NEIS API error {code}: {message}")
         self.code = code
+
+
+class NeisAuthenticationError(NeisApiError):
+    """Raised when a NEIS API key is invalid or restricted."""
+
+
+class NeisRateLimitError(NeisApiError):
+    """Raised when the NEIS daily traffic limit is exhausted."""
+
+
+def _raise_api_error(code: str, message: str) -> None:
+    """Raise a typed API error without relying on response text."""
+    if code in AUTH_ERROR_CODES:
+        raise NeisAuthenticationError(code, message)
+    if code in RATE_LIMIT_ERROR_CODES:
+        raise NeisRateLimitError(code, message)
+    raise NeisApiError(code, message)
 
 
 class NeisAPI:
@@ -128,7 +152,7 @@ class NeisAPI:
             code = str(direct_result.get("CODE", "ERROR"))
             if code == "INFO-200":
                 return NeisResponse.empty(code)
-            raise NeisApiError(code, str(direct_result.get("MESSAGE", "Unknown error")))
+            _raise_api_error(code, str(direct_result.get("MESSAGE", "Unknown error")))
 
         container = payload.get(endpoint)
         if not isinstance(container, list) or len(container) < 2:
@@ -159,7 +183,7 @@ class NeisAPI:
                     raise NeisApiError("INVALID_RESPONSE", "Invalid result metadata")
                 result_code = str(result.get("CODE", "ERROR"))
                 if result_code not in ("INFO-000", "INFO-200"):
-                    raise NeisApiError(
+                    _raise_api_error(
                         result_code, str(result.get("MESSAGE", "Unknown error"))
                     )
 

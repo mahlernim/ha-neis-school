@@ -9,12 +9,18 @@ import pytest
 from aiohttp import web
 
 from custom_components.neis_school import api as api_module
-from custom_components.neis_school.api import NeisAPI, NeisApiError
+from custom_components.neis_school.api import (
+    NeisAPI,
+    NeisApiError,
+    NeisAuthenticationError,
+    NeisRateLimitError,
+)
 
 
 @pytest.fixture(autouse=True)
 def allow_local_test_server(socket_enabled) -> None:
     """Allow aiohttp to bind the loopback test server."""
+
 
 FIXTURES = Path(__file__).parent / "fixtures"
 
@@ -81,9 +87,7 @@ async def test_authenticated_repeated_page_is_rejected(
     monkeypatch.setattr(api_module, "BASE_URL", str(client.make_url("/")).rstrip("/"))
 
     with pytest.raises(NeisApiError, match="repeated page"):
-        await NeisAPI(client.session, "test-key").get_classes(
-            "C10", "7201202", 2026, 6
-        )
+        await NeisAPI(client.session, "test-key").get_classes("C10", "7201202", 2026, 6)
 
 
 @pytest.mark.asyncio
@@ -122,6 +126,41 @@ async def test_info_200_is_complete_empty(aiohttp_client, monkeypatch) -> None:
     assert response.rows == ()
     assert response.complete is True
     assert response.result_code == "INFO-200"
+
+
+@pytest.mark.parametrize("code", ["ERROR-290", "INFO-300"])
+@pytest.mark.asyncio
+async def test_authentication_errors_are_typed(
+    aiohttp_client, monkeypatch, code
+) -> None:
+    """Invalid and restricted keys must start Home Assistant reauthentication."""
+    app = web.Application()
+
+    async def handler(_request):
+        return web.json_response({"RESULT": {"CODE": code, "MESSAGE": "denied"}})
+
+    app.router.add_get("/schoolInfo", handler)
+    client = await aiohttp_client(app)
+    monkeypatch.setattr(api_module, "BASE_URL", str(client.make_url("/")).rstrip("/"))
+
+    with pytest.raises(NeisAuthenticationError):
+        await NeisAPI(client.session, "bad-key").search_schools("C10", "학교")
+
+
+@pytest.mark.asyncio
+async def test_rate_limit_error_is_typed(aiohttp_client, monkeypatch) -> None:
+    """Daily traffic exhaustion must be distinguishable from invalid auth."""
+    app = web.Application()
+
+    async def handler(_request):
+        return web.json_response({"RESULT": {"CODE": "ERROR-337", "MESSAGE": "quota"}})
+
+    app.router.add_get("/schoolInfo", handler)
+    client = await aiohttp_client(app)
+    monkeypatch.setattr(api_module, "BASE_URL", str(client.make_url("/")).rstrip("/"))
+
+    with pytest.raises(NeisRateLimitError):
+        await NeisAPI(client.session, "valid-key").search_schools("C10", "학교")
 
 
 @pytest.mark.parametrize(

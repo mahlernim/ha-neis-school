@@ -30,6 +30,9 @@ MAX_PAGES: Final = 100
 
 ISSUE_INCOMPLETE_DATA: Final = "incomplete_data"
 
+AUTH_ERROR_CODES: Final = frozenset({"ERROR-290", "INFO-300"})
+RATE_LIMIT_ERROR_CODES: Final = frozenset({"ERROR-337"})
+
 SCHOOL_KIND_ENDPOINTS: Final = {
     "초등학교": "elsTimetable",
     "중학교": "misTimetable",

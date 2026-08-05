@@ -34,6 +34,16 @@
       "meals": {
         "title": "Select meals",
         "data": {"meal_types": "Meal types"}
+      },
+      "reauth_confirm": {
+        "title": "Reconnect to NEIS",
+        "description": "The existing key was rejected. Enter a new [free API key]({api_key_url}) or confirm limited mode.",
+        "data": {"api_key": "New NEIS API key", "limited_ack": "Use limited mode without an API key"}
+      },
+      "reconfigure": {
+        "title": "Reconfigure NEIS",
+        "description": "Enter a new [free API key]({api_key_url}) or switch to limited mode.",
+        "data": {"api_key": "New NEIS API key", "limited_ack": "Use limited mode without an API key"}
       }
     },
     "error": {
@@ -41,19 +51,24 @@
       "cannot_connect": "Could not connect to NEIS.",
       "class_not_found": "The selected grade and class were not found.",
       "incomplete_data": "NEIS returned incomplete sample data. Add an API key and try again.",
+      "invalid_auth": "The NEIS API key is invalid or restricted.",
       "limited_not_acknowledged": "Acknowledge the limitation or enter an API key.",
+      "rate_limited": "The NEIS daily request limit has been reached. Try again tomorrow.",
       "school_not_found": "No supported school was found. Refine the school name."
     },
-    "abort": {"already_configured": "This school is already configured."}
+    "abort": {
+      "already_configured": "The same school, grade, and class is already configured.",
+      "reauth_successful": "NEIS credentials were updated.",
+      "reconfigure_successful": "The NEIS connection was updated.",
+      "unknown": "Setup could not continue. Start again."
+    }
   },
   "options": {
     "step": {
       "init": {
         "title": "NEIS School options",
-        "description": "Update the API key, grade, class, or enabled meal types. Removing the API key enables limited mode and requires acknowledgement.",
+        "description": "Update the grade, class, or enabled meal types. Use Reconfigure on the integration to change the API key.",
         "data": {
-          "api_key": "NEIS API key",
-          "limited_ack": "I understand that data can be incomplete without an API key",
           "grade": "Grade",
           "class_name": "Class",
           "meal_types": "Meal types"
@@ -62,10 +77,12 @@
     },
     "error": {
       "api_error": "NEIS rejected the request. Check the API key and input.",
+      "already_configured": "The same school, grade, and class is already configured.",
       "cannot_connect": "Could not connect to NEIS.",
       "class_not_found": "The selected grade and class were not found.",
       "incomplete_data": "NEIS returned incomplete sample data. Add an API key and try again.",
-      "limited_not_acknowledged": "Acknowledge the limitation before removing the API key."
+      "invalid_auth": "The NEIS API key is invalid or restricted.",
+      "rate_limited": "The NEIS daily request limit has been reached. Try again tomorrow."
     }
   },
   "selector": {
@@ -102,7 +119,7 @@
   "issues": {
     "incomplete_data": {
       "title": "NEIS returned incomplete data",
-      "description": "The affected data sources are {sources}. Add a free NEIS API key in the integration options, then try again."
+      "description": "The affected data sources are {sources}. Add a free NEIS API key from Reconfigure on the integration, then try again."
     }
   }
 }

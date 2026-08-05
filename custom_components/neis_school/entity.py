@@ -8,7 +8,6 @@ from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from .const import (
     CONF_SCHOOL_HOMEPAGE,
     CONF_SCHOOL_KIND,
-    CONF_SCHOOL_NAME,
     DOMAIN,
 )
 from .coordinator import NeisSchoolCoordinator
@@ -24,8 +23,8 @@ class NeisSchoolEntity(CoordinatorEntity[NeisSchoolCoordinator]):
         super().__init__(coordinator)
         entry = coordinator.entry
         self._attr_device_info = DeviceInfo(
-            identifiers={(DOMAIN, coordinator.school_code)},
-            name=str(entry.data[CONF_SCHOOL_NAME]),
+            identifiers={(DOMAIN, entry.entry_id)},
+            name=entry.title,
             manufacturer="NEIS",
             model=str(entry.data[CONF_SCHOOL_KIND]),
             configuration_url=entry.data.get(CONF_SCHOOL_HOMEPAGE),

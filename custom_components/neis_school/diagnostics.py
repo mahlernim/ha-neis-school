@@ -44,9 +44,7 @@ def _response_diagnostics(response: NeisResponse) -> dict[str, Any]:
         "returned_count": len(response.rows),
         "total_count": response.total_count,
         "complete": response.complete,
-        "sample_rows": async_redact_data(
-            {"rows": sample}, ROW_REDACT_KEYS
-        )["rows"],
+        "sample_rows": async_redact_data({"rows": sample}, ROW_REDACT_KEYS)["rows"],
         "sample_truncated_count": max(0, len(response.rows) - len(sample)),
     }
 
@@ -63,7 +61,9 @@ async def async_get_config_entry_diagnostics(
                 "title": entry.title,
                 "data": dict(entry.data),
                 "options": dict(entry.options),
-                "api_key_configured": bool(entry.options.get(CONF_API_KEY)),
+                "api_key_configured": bool(
+                    entry.data.get(CONF_API_KEY, entry.options.get(CONF_API_KEY))
+                ),
             },
             ENTRY_REDACT_KEYS,
         ),
@@ -74,9 +74,13 @@ async def async_get_config_entry_diagnostics(
         "runtime": {
             "local_date": data.local_date.isoformat(),
             "last_success": data.last_success.isoformat(),
-            "last_attempt": data.last_attempt.isoformat(),
-            "last_error": data.last_error,
-            "retained_after_error": data.retained_after_error,
+            "last_attempt": (
+                coordinator.last_attempt.isoformat()
+                if coordinator.last_attempt is not None
+                else None
+            ),
+            "last_error": coordinator.last_error,
+            "consecutive_failures": coordinator.consecutive_failures,
             "incomplete_sources": sorted(data.incomplete_sources),
             "meals": {
                 day.isoformat(): _response_diagnostics(response)

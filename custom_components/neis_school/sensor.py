@@ -9,11 +9,11 @@ from homeassistant.components.sensor import (
     SensorDeviceClass,
     SensorEntity,
 )
-from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import EntityCategory
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
+from . import NeisSchoolConfigEntry
 from .const import (
     CONF_MEAL_TYPES,
     CONF_SCHOOL_NAME,
@@ -47,11 +47,11 @@ _MEAL_KEYS = {
 
 async def async_setup_entry(
     hass: HomeAssistant,
-    entry: ConfigEntry,
+    entry: NeisSchoolConfigEntry,
     async_add_entities: AddConfigEntryEntitiesCallback,
 ) -> None:
     """Set up NEIS School sensors."""
-    coordinator: NeisSchoolCoordinator = entry.runtime_data
+    coordinator = entry.runtime_data
     meal_types = entry.options.get(CONF_MEAL_TYPES, [MEAL_LUNCH])
     entities: list[SensorEntity] = []
     for meal_type in meal_types:
@@ -93,7 +93,7 @@ class NeisMealSensor(NeisSchoolEntity, SensorEntity):
         day_key = "today" if day_offset == 0 else "tomorrow"
         meal_key = _MEAL_KEYS[meal_type]
         self._attr_translation_key = f"{meal_key}_{day_key}"
-        self._attr_unique_id = f"{coordinator.school_code}_{meal_key}_{day_key}"
+        self._attr_unique_id = f"{coordinator.entry.entry_id}_{meal_key}_{day_key}"
 
     @property
     def available(self) -> bool:
@@ -121,9 +121,7 @@ class NeisMealSensor(NeisSchoolEntity, SensorEntity):
             "api_mode": "full" if self.coordinator.api.has_api_key else "limited",
             "data_complete": self.available,
             "menu": "",
-            "menu_tts": format_meal_tts(
-                self._target_date, school_name, meal_name, ""
-            ),
+            "menu_tts": format_meal_tts(self._target_date, school_name, meal_name, ""),
         }
         if row is None:
             return attributes
@@ -131,9 +129,7 @@ class NeisMealSensor(NeisSchoolEntity, SensorEntity):
         menu = clean_menu(raw_menu)
         school_name = str(row.get("SCHUL_NM") or school_name)
         meal_name = str(row.get("MMEAL_SC_NM") or meal_name)
-        menu_tts = format_meal_tts(
-            self._target_date, school_name, meal_name, menu
-        )
+        menu_tts = format_meal_tts(self._target_date, school_name, meal_name, menu)
         attributes.update(
             {
                 "menu": menu,
@@ -173,13 +169,11 @@ class NeisScheduleTodaySensor(NeisSchoolEntity, SensorEntity):
     _attr_translation_key = "schedule_today"
     _attr_device_class = SensorDeviceClass.ENUM
     _attr_options: ClassVar[list[str]] = ["scheduled", "none"]
-    _unrecorded_attributes = frozenset(
-        {"events", "schedule_text", "schedule_tts"}
-    )
+    _unrecorded_attributes = frozenset({"events", "schedule_text", "schedule_tts"})
 
     def __init__(self, coordinator: NeisSchoolCoordinator) -> None:
         super().__init__(coordinator)
-        self._attr_unique_id = f"{coordinator.school_code}_schedule_today"
+        self._attr_unique_id = f"{coordinator.entry.entry_id}_schedule_today"
 
     @property
     def available(self) -> bool:
@@ -221,11 +215,7 @@ class NeisScheduleTodaySensor(NeisSchoolEntity, SensorEntity):
             self.coordinator.data.schedules[self.coordinator.data.local_date],
             self.coordinator.grade,
         )
-        return [
-            name
-            for row in rows
-            if (name := str(row.get("EVENT_NM", "")).strip())
-        ]
+        return [name for row in rows if (name := str(row.get("EVENT_NM", "")).strip())]
 
 
 def _format_schedule_for_tts(
@@ -250,7 +240,7 @@ class NeisNextEventSensor(NeisSchoolEntity, SensorEntity):
 
     def __init__(self, coordinator: NeisSchoolCoordinator) -> None:
         super().__init__(coordinator)
-        self._attr_unique_id = f"{coordinator.school_code}_next_school_event"
+        self._attr_unique_id = f"{coordinator.entry.entry_id}_next_school_event"
 
     @property
     def available(self) -> bool:
@@ -299,7 +289,7 @@ class NeisNextSchooldaySensor(NeisSchoolEntity, SensorEntity):
 
     def __init__(self, coordinator: NeisSchoolCoordinator) -> None:
         super().__init__(coordinator)
-        self._attr_unique_id = f"{coordinator.school_code}_next_schoolday"
+        self._attr_unique_id = f"{coordinator.entry.entry_id}_next_schoolday"
 
     @property
     def available(self) -> bool:
@@ -325,17 +315,12 @@ class NeisTimetableSensor(NeisSchoolEntity, SensorEntity):
         self._day_offset = day_offset
         day_key = "today" if day_offset == 0 else "tomorrow"
         self._attr_translation_key = f"timetable_{day_key}"
-        self._attr_unique_id = f"{coordinator.school_code}_timetable_{day_key}"
+        self._attr_unique_id = f"{coordinator.entry.entry_id}_timetable_{day_key}"
 
     @property
     def available(self) -> bool:
         response = self.coordinator.data.timetables.get(self._target_date)
-        if response is None or not response.complete:
-            return False
-        if response.rows:
-            return super().available
-        result = self._schoolday
-        return super().available and result.available and result.is_schoolday is False
+        return super().available and response is not None and response.complete
 
     @property
     def native_value(self) -> int:
@@ -348,7 +333,14 @@ class NeisTimetableSensor(NeisSchoolEntity, SensorEntity):
         lessons, text, timetable_tts = format_timetable(
             self._target_date, response.rows
         )
-        status = "available" if lessons else self._schoolday.reason
+        schoolday = self._schoolday
+        status = (
+            "available"
+            if lessons
+            else "no_timetable"
+            if schoolday.is_schoolday
+            else schoolday.reason
+        )
         return {
             "date": self._target_date.isoformat(),
             "status": status,
@@ -384,7 +376,7 @@ class NeisApiModeSensor(NeisSchoolEntity, SensorEntity):
 
     def __init__(self, coordinator: NeisSchoolCoordinator) -> None:
         super().__init__(coordinator)
-        self._attr_unique_id = f"{coordinator.school_code}_api_mode"
+        self._attr_unique_id = f"{coordinator.entry.entry_id}_api_mode"
 
     @property
     def native_value(self) -> str:
@@ -405,7 +397,7 @@ class NeisLastUpdateSensor(NeisSchoolEntity, SensorEntity):
 
     def __init__(self, coordinator: NeisSchoolCoordinator) -> None:
         super().__init__(coordinator)
-        self._attr_unique_id = f"{coordinator.school_code}_last_successful_update"
+        self._attr_unique_id = f"{coordinator.entry.entry_id}_last_successful_update"
 
     @property
     def native_value(self):
