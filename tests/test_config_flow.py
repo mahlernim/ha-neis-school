@@ -4,6 +4,7 @@ from unittest.mock import AsyncMock, patch
 
 from homeassistant import config_entries
 from homeassistant.data_entry_flow import FlowResultType
+from homeassistant.helpers.selector import SelectSelector
 
 from custom_components.neis_school.const import (
     CONF_API_KEY,
@@ -17,6 +18,35 @@ from custom_components.neis_school.const import (
     DOMAIN,
 )
 from custom_components.neis_school.models import NeisResponse
+
+
+def test_academic_year_uses_march_boundary() -> None:
+    from datetime import date
+
+    from custom_components.neis_school.config_flow import _academic_year
+
+    assert _academic_year(date(2026, 2, 28)) == 2025
+    assert _academic_year(date(2026, 3, 1)) == 2026
+
+
+def test_grade_schema_is_a_school_specific_dropdown() -> None:
+    from custom_components.neis_school.config_flow import _grade_schema
+
+    elementary = _grade_schema("초등학교")
+    middle = _grade_schema("중학교")
+
+    assert isinstance(elementary.validators[0], SelectSelector)
+    assert elementary.validators[0].config["mode"] == "dropdown"
+    assert elementary.validators[0].config["options"] == [
+        "1",
+        "2",
+        "3",
+        "4",
+        "5",
+        "6",
+    ]
+    assert middle.validators[0].config["options"] == ["1", "2", "3"]
+    assert elementary("6") == 6
 
 
 async def test_limited_mode_requires_acknowledgement(hass) -> None:
@@ -73,7 +103,7 @@ async def test_complete_setup_with_api_key(hass) -> None:
         )
         assert result["step_id"] == "grade"
         result = await hass.config_entries.flow.async_configure(
-            result["flow_id"], {CONF_GRADE: 6}
+            result["flow_id"], {CONF_GRADE: "6"}
         )
         assert result["step_id"] == "class"
         result = await hass.config_entries.flow.async_configure(

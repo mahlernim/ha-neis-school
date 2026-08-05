@@ -1,99 +1,154 @@
-# 홈어시스턴트 나이스 학교생활
+<p align="center">
+  <img src="custom_components/neis_school/brand/icon@2x.png" alt="홈어시스턴트 나이스 학교생활" width="168">
+</p>
 
-[English](#english)
+<h1 align="center">홈어시스턴트 나이스 학교생활</h1>
 
-NEIS 교육정보 개방 포털의 공개 데이터를 Home Assistant에 연결하는 비공식 HACS 통합 구성요소입니다. 전국 초등학교, 중학교, 고등학교와 특수학교의 급식, 학사일정, 등교일과 반별 시간표를 제공합니다.
+<p align="center">
+  우리 학교의 급식, 시간표, 학사일정과 등교 정보를 Home Assistant에서 확인하고 자동화하세요.
+</p>
+
+<p align="center">
+  <a href="https://github.com/mahlernim/ha-neis-school/releases"><img alt="최신 릴리스" src="https://img.shields.io/github/v/release/mahlernim/ha-neis-school"></a>
+  <a href="https://github.com/mahlernim/ha-neis-school/actions/workflows/validate.yml"><img alt="검증 상태" src="https://github.com/mahlernim/ha-neis-school/actions/workflows/validate.yml/badge.svg"></a>
+  <img alt="Home Assistant 2025.12 이상" src="https://img.shields.io/badge/Home%20Assistant-2025.12%2B-18BCF2?logo=home-assistant&logoColor=white">
+  <img alt="HACS 통합 구성요소" src="https://img.shields.io/badge/HACS-Integration-41BDF5?logo=home-assistant-community-store&logoColor=white">
+  <a href="LICENSE"><img alt="MIT 라이선스" src="https://img.shields.io/github/license/mahlernim/ha-neis-school"></a>
+</p>
+
+<p align="center">
+  <a href="https://my.home-assistant.io/redirect/hacs_repository/?owner=mahlernim&repository=ha-neis-school&category=integration">
+    <img src="https://my.home-assistant.io/badges/hacs_repository.svg" alt="HACS에서 저장소 열기">
+  </a>
+  <a href="https://my.home-assistant.io/redirect/config_flow_start/?domain=neis_school">
+    <img src="https://my.home-assistant.io/badges/config_flow_start.svg" alt="Home Assistant에 통합 구성요소 추가하기">
+  </a>
+</p>
+
+<p align="center"><a href="#english">English summary</a></p>
+
+**홈어시스턴트 나이스 학교생활**은 교육부 NEIS 교육정보 개방 포털의 공개
+데이터를 Home Assistant에 연결하는 비공식 통합 구성요소입니다. 학교를 한 번
+등록하면 급식, 시간표, 학사일정과 등교 정보를 자동으로 갱신하며 대시보드,
+알림과 음성 안내 자동화에 활용할 수 있습니다.
 
 ## 주요 기능
 
-- 학교명 검색과 학교급 자동 판별
-- 학년과 반 확인
-- 선택한 조식·중식·석식의 오늘·내일 센서
-- 메뉴, TTS, 열량, 영양성분, 알레르기, 원산지와 급식 인원
-- 오늘과 내일의 등교일 binary sensor
-- 오늘 일정, 다음 학교행사와 다음 등교일
-- 오늘과 내일의 교시별 시간표
-- 학년별로 필터링한 읽기 전용 Home Assistant 캘린더
-- 한국어와 영어 UI
+- 학교 이름을 검색해 학교, 학년과 반을 간편하게 설정
+- 오늘과 내일의 조식·중식·석식 메뉴와 영양 정보 제공
+- 오늘과 내일의 등교 여부 및 다음 등교일 확인
+- 오늘의 학사일정과 다음 학교행사 확인
+- 오늘과 내일의 교시별 시간표 제공
+- 급식, 시간표와 학사일정을 자연스럽게 읽는 TTS 문장 제공
+- 필요한 경우 활성화할 수 있는 학사일정 캘린더
+- Home Assistant에서 내려받을 수 있는 개인정보 보호 진단 정보
 
-## 인증키와 제한 모드
+## 요구 사항
 
-인증키 없이도 학교정보와 하루 급식처럼 결과가 적은 기본 조회는 동작할 수 있습니다. 그러나 인증키가 없는 NEIS 요청은 첫 5건의 샘플만 반환하고 `pIndex`와 `pSize`도 무시할 수 있습니다.
-
-실제 확인 사례는 다음과 같습니다.
-
-| 조회 | 인증키 없음 | 인증키 있음 |
-|---|---:|---:|
-| 6학년 반정보 | 총 6건 중 5건 | 6건 |
-| 6교시 시간표 | 1~5교시 | 1~6교시 |
-| 한 달 학사일정 | 총 30건 중 5건 | 30건 |
-
-통합 구성요소는 전체 건수보다 적은 행이 반환되면 해당 데이터를 `unavailable`로 처리하고 Home Assistant 수리 알림을 표시합니다. 월간 캘린더와 다음 일정 기능은 완전성을 보장하기 위해 인증키가 필요합니다.
-
-인증키는 무료입니다.
-
-1. [NEIS 인증키 신청](https://open.neis.go.kr/portal/guide/actKeyPage.do)에 접속합니다.
-2. Google, 네이버 또는 다음 계정으로 로그인합니다.
-3. 인증키를 신청합니다.
-4. 마이페이지의 인증키 발급 내역에서 키를 확인합니다.
-
-[NEIS 개발자 가이드](https://open.neis.go.kr/portal/guide/apiGuidePage.do)
+- Home Assistant 2025.12.0 이상
+- NEIS 서비스에 연결할 수 있는 인터넷 환경
+- 완전한 데이터 조회를 위한 무료 NEIS 인증키 사용 권장
 
 ## 설치
 
-### HACS 사용자 저장소
+### HACS
 
-1. HACS에서 사용자 지정 저장소를 엽니다.
-2. `https://github.com/mahlernim/ha-neis-school`을 통합 구성요소 유형으로 추가합니다.
-3. **홈어시스턴트 나이스 학교생활**을 설치합니다.
+1. 위의 **HACS에서 저장소 열기** 버튼을 선택합니다.
+2. 아직 기본 저장소에 표시되지 않는 경우 HACS 사용자 지정 저장소로 추가합니다.
+3. **홈어시스턴트 나이스 학교생활**을 다운로드합니다.
 4. Home Assistant를 다시 시작합니다.
-5. 설정 → 기기 및 서비스 → 통합 구성요소 추가에서 **NEIS School**을 선택합니다.
+5. 위의 **Home Assistant에 추가** 버튼을 선택하거나 **설정 → 기기 및 서비스
+   → 통합 구성요소 추가**에서 **홈어시스턴트 나이스 학교생활**을 검색합니다.
 
-최소 지원 버전은 Home Assistant 2025.12.0입니다.
+> **Home Assistant에 추가** 버튼은 통합 구성요소를 다운로드하지 않습니다.
+> HACS 설치와 Home Assistant 재시작을 먼저 완료해야 합니다.
 
-## 설정
+### 수동 설치
 
-1. 인증키를 입력하거나 제한 모드 안내를 확인합니다.
-2. 시도교육청과 학교명을 입력합니다.
+`custom_components/neis_school` 폴더를 Home Assistant 설정 폴더의
+`custom_components` 안에 복사하고 Home Assistant를 다시 시작한 뒤 통합
+구성요소를 추가합니다.
+
+## 처음 설정하기
+
+1. NEIS 인증키를 입력합니다.
+2. 시도교육청을 선택하고 학교 이름을 검색합니다.
 3. 검색 결과에서 학교를 선택합니다.
 4. 학년과 반을 선택합니다.
 5. 사용할 급식 유형을 선택합니다. 기본값은 중식입니다.
 
-인증키, 학년, 반과 급식 유형은 통합 구성요소의 **구성** 메뉴에서 변경할 수 있습니다. 학교 하나는 한 번만 등록할 수 있으며 다른 학교는 통합 구성요소를 다시 추가하면 됩니다.
+설정이 끝나면 한 학교가 하나의 기기로 추가되고 관련 엔티티가 자동으로
+생성됩니다. 다른 학교도 같은 방법으로 추가할 수 있습니다. 인증키, 학년, 반과
+급식 유형은 통합 구성요소의 **구성** 메뉴에서 변경할 수 있습니다.
 
-## 주요 엔티티
+## NEIS 인증키
 
-엔티티 ID는 Home Assistant 언어와 학교명에 따라 생성됩니다.
+인증키 없이 제한 모드로 설정할 수도 있지만, NEIS가 일부 요청에서 전체 결과
+대신 제한된 샘플만 반환할 수 있습니다. 이 경우 통합 구성요소는 불완전한 값을
+자동화에 사용하지 않도록 관련 엔티티를 `unavailable`로 표시합니다.
 
-- `binary_sensor` 오늘 등교일, 내일 등교일
-- `sensor` 식사별 오늘·내일 급식
-- `sensor` 오늘 학사일정, 다음 학교행사, 다음 등교일
-- `sensor` 오늘 시간표, 내일 시간표
-- `calendar` 학사일정
-- 기본 비활성 진단 센서 API 모드, 마지막 정상 갱신
+안정적인 시간표, 학사일정과 캘린더 사용을 위해 무료 인증키를 권장합니다.
 
-급식과 시간표의 긴 내용은 센서 속성에서 확인할 수 있습니다. API 오류는 학교를 쉬는 날로 오인하지 않도록 `off` 대신 `unavailable`로 표시합니다.
+- [NEIS 인증키 신청](https://open.neis.go.kr/portal/guide/actKeyPage.do)
+- [NEIS 개발자 가이드](https://open.neis.go.kr/portal/guide/apiGuidePage.do)
 
-## 개인정보와 보안
+## 제공 엔티티
 
-이 통합 구성요소는 공개 NEIS 데이터만 사용합니다. 학생 이름, 출결, 성적, 생활기록부, 담임교사, 숙제와 가정통신문에는 접근하지 않습니다.
+엔티티 ID는 Home Assistant 언어와 학교 이름에 따라 달라질 수 있습니다.
+자동화를 만들기 전에 **개발자 도구 → 상태**에서 실제 엔티티 ID를 확인하세요.
 
-API 키는 로그, 엔티티 속성, 진단 다운로드와 고유 ID에 포함하지 않습니다. 개발용 `env.txt`, `.env`와 `*.key` 파일은 Git에서 제외됩니다.
+| 종류 | 제공 정보 | 자동화에 유용한 속성 |
+|---|---|---|
+| 급식 센서 | 오늘·내일 조식, 중식, 석식 | `menu_tts`, 열량, 영양성분, 알레르기, 원산지 |
+| 시간표 센서 | 오늘·내일 교시별 과목 | `timetable_tts`, 교시 목록 |
+| 학사일정 센서 | 오늘 일정, 다음 학교행사 | `schedule_tts`, 행사 목록 |
+| 등교일 센서 | 오늘·내일 등교 여부, 다음 등교일 | 판정 이유와 관련 행사 |
+| 캘린더 | 학년별 학사일정 | 읽기 전용, 기본 비활성 |
 
-## 기존 HA 급식알리미와의 관계
+캘린더는 모든 일정을 자동으로 등록하지 않도록 기본적으로 꺼져 있습니다.
+필요하면 통합 구성요소의 엔티티 목록에서 **학사일정** 캘린더를 활성화하세요.
 
-이 프로젝트는 [HA 급식알리미](https://github.com/mahlernim/ha-geupshik-allimi)의 경험을 바탕으로 새 도메인과 데이터 모델로 다시 설계했습니다. 자동 마이그레이션은 제공하지 않으며 두 통합 구성요소를 병행 설치해 자동화를 하나씩 전환할 수 있습니다.
+## 음성 안내와 자동화
+
+급식, 시간표와 학사일정 센서는 스마트 스피커에서 바로 사용할 수 있는 TTS
+문장을 제공합니다. 급식 문장에서는 알레르기 번호와 장식 문자를 정리하고,
+누락된 시간표 항목은 읽지 않습니다.
+
+다음 예제는 Home Assistant 자동화의 **YAML로 편집** 화면에 붙여 넣은 뒤 센서,
+TTS 엔진과 스피커 엔티티 ID만 바꾸어 사용할 수 있습니다.
+
+- [매일 급식 메뉴 안내](docs/automation-examples.md#급식-메뉴-안내)
+- [오늘 시간표 안내](docs/automation-examples.md#오늘-시간표-안내)
+- [급식·학사일정·시간표 아침 브리핑](docs/automation-examples.md#아침-학교생활-브리핑)
+
+## 문제 해결
+
+- 데이터가 `unavailable`이면 인터넷 연결과 NEIS 인증키를 확인합니다.
+- 학교나 반을 찾을 수 없으면 학교 이름, 교육청, 학년과 반을 다시 확인합니다.
+- 문제가 계속되면 **설정 → 기기 및 서비스 → 홈어시스턴트 나이스 학교생활
+  → 점 3개 메뉴 → 진단 정보 다운로드**에서 진단 파일을 저장합니다.
+- [GitHub Issues](https://github.com/mahlernim/ha-neis-school/issues)에 Home
+  Assistant 버전, 통합 구성요소 버전, 증상과 진단 파일을 첨부합니다.
+
+진단 정보에서는 인증키, 학교 코드·이름, 홈페이지와 주소를 자동으로 가립니다.
+
+## 개인정보 보호
+
+이 통합 구성요소는 공개 NEIS 데이터만 사용합니다. 학생 이름, 출결, 성적,
+생활기록부, 담임교사, 숙제와 가정통신문에는 접근하지 않습니다. NEIS 인증키는
+엔티티 상태, 로그와 다운로드 진단 정보에 노출하지 않습니다.
 
 ## English
 
-NEIS School is an unofficial Home Assistant integration for Korea's public NEIS education data. It supports school search, breakfast/lunch/dinner, nutrition, schooldays, academic schedules, class timetables, and a read-only calendar for elementary, middle, high, and special schools.
+NEIS School is an unofficial Home Assistant integration for Korea's public
+education data. It provides school search, meals, schooldays, academic events,
+class timetables, TTS-ready text, and an optional read-only calendar.
 
-An API key is optional for basic testing. Without a key, NEIS may return only the first five sample rows and ignore pagination. Incomplete responses are not exposed as valid automation data. Request a free key from the [NEIS key page](https://open.neis.go.kr/portal/guide/actKeyPage.do) for complete operation.
+Install it with HACS, restart Home Assistant, and add **NEIS School** from
+**Settings → Devices & services**. A free NEIS API key is recommended because
+unauthenticated requests may return incomplete sample data. Home Assistant
+2025.12.0 or newer is required.
 
-Install this repository as a HACS custom integration, restart Home Assistant, and add **NEIS School** from Settings → Devices & services. Home Assistant 2025.12.0 or newer is required.
+## 라이선스
 
-This integration only accesses public school data and never accesses personal student records.
-
-## License
-
-MIT
+[MIT License](LICENSE)
