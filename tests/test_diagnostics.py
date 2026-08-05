@@ -73,6 +73,7 @@ async def test_config_entry_diagnostics_never_exposes_credentials_or_school() ->
     entry = SimpleNamespace(
         title="Private School 1-1",
         data={
+            CONF_API_KEY: "secret-api-key",
             CONF_OFFICE_CODE: "C10",
             CONF_SCHOOL_CODE: "private-school-code",
             CONF_SCHOOL_NAME: "Private School",
@@ -80,11 +81,15 @@ async def test_config_entry_diagnostics_never_exposes_credentials_or_school() ->
             CONF_SCHOOL_HOMEPAGE: "https://private-school.example",
         },
         options={
-            CONF_API_KEY: "secret-api-key",
             CONF_GRADE: 1,
             CONF_CLASS_NAME: "1",
         },
-        runtime_data=SimpleNamespace(data=data),
+        runtime_data=SimpleNamespace(
+            data=data,
+            last_attempt=timestamp,
+            last_error=None,
+            consecutive_failures=0,
+        ),
     )
 
     result = await async_get_config_entry_diagnostics(None, entry)
@@ -96,4 +101,4 @@ async def test_config_entry_diagnostics_never_exposes_credentials_or_school() ->
     assert "private-school.example" not in serialized
     assert result["entry"]["api_key_configured"] is True
     assert result["runtime"]["last_error"] is None
-    assert result["runtime"]["retained_after_error"] is False
+    assert result["runtime"]["consecutive_failures"] == 0

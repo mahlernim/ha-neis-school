@@ -8,7 +8,7 @@ import importlib.util
 import os
 import sys
 import types
-from datetime import date
+from datetime import date, timedelta
 from pathlib import Path
 
 import aiohttp
@@ -38,25 +38,57 @@ def _load_key() -> str:
     raise SystemExit("NEIS_API_KEY is not configured")
 
 
+def _required_env(name: str) -> str:
+    """Load a required smoke-test target without hardcoding a classroom."""
+    value = os.getenv(name, "").strip()
+    if not value:
+        raise SystemExit(f"{name} is not configured")
+    return value
+
+
 async def main() -> None:
     """Verify completeness without printing the key or request URL."""
     key = _load_key()
+    office_code = _required_env("NEIS_OFFICE_CODE")
+    school_code = _required_env("NEIS_SCHOOL_CODE")
+    school_kind = _required_env("NEIS_SCHOOL_KIND")
+    grade = int(_required_env("NEIS_GRADE"))
+    class_name = _required_env("NEIS_CLASS_NAME")
+    test_date = date.fromisoformat(_required_env("NEIS_TEST_DATE"))
+    academic_year = test_date.year if test_date.month >= 3 else test_date.year - 1
+    schedule_start = test_date.replace(day=1)
+    next_month = (schedule_start.replace(day=28) + timedelta(days=4)).replace(day=1)
+    schedule_end = next_month - timedelta(days=1)
     async with aiohttp.ClientSession() as session:
         full = NeisAPI(session, key)
         limited = NeisAPI(session)
-        full_classes = await full.get_classes("C10", "7201202", 2026, 6)
-        limited_classes = await limited.get_classes("C10", "7201202", 2026, 6)
+        full_classes = await full.get_classes(
+            office_code, school_code, academic_year, grade
+        )
+        limited_classes = await limited.get_classes(
+            office_code, school_code, academic_year, grade
+        )
         full_timetable = await full.get_timetable(
-            "C10", "7201202", "초등학교", date(2026, 3, 5), 6, "2"
+            office_code,
+            school_code,
+            school_kind,
+            test_date,
+            grade,
+            class_name,
         )
         limited_timetable = await limited.get_timetable(
-            "C10", "7201202", "초등학교", date(2026, 3, 5), 6, "2"
+            office_code,
+            school_code,
+            school_kind,
+            test_date,
+            grade,
+            class_name,
         )
         full_schedule = await full.get_schedule(
-            "C10", "7201202", date(2026, 8, 1), date(2026, 8, 31)
+            office_code, school_code, schedule_start, schedule_end
         )
         limited_schedule = await limited.get_schedule(
-            "C10", "7201202", date(2026, 8, 1), date(2026, 8, 31)
+            office_code, school_code, schedule_start, schedule_end
         )
     print(
         "classes",

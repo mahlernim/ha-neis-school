@@ -19,24 +19,16 @@
         "description": "인증키가 있으면 반 목록을 자동으로 표시합니다. 제한 모드에서는 입력한 반을 정확한 조건으로 확인합니다.",
         "data": {"class_name": "반"}
       },
-      "meals": {"title": "급식 유형 선택", "data": {"meal_types": "급식 유형"}}
-    },
-    "error": {
-      "api_error": "NEIS가 요청을 거부했습니다. 인증키와 입력값을 확인하세요.",
-      "cannot_connect": "NEIS에 연결할 수 없습니다.",
-      "class_not_found": "선택한 학년과 반을 찾을 수 없습니다.",
-      "incomplete_data": "NEIS가 불완전한 샘플 데이터만 반환했습니다. 인증키를 추가한 뒤 다시 시도하세요.",
-      "limited_not_acknowledged": "제한 사항을 확인하거나 인증키를 입력하세요.",
-      "school_not_found": "지원되는 학교를 찾지 못했습니다. 학교 이름을 더 정확히 입력하세요."
-    },
-    "abort": {"already_configured": "이미 설정된 학교입니다."}
-  },
-  "options": {
-    "step": {
-      "init": {
-        "title": "나이스 학교생활 옵션",
-        "description": "인증키, 학년, 반 또는 사용할 급식 유형을 변경합니다. 인증키를 제거하면 제한 모드가 되며 확인이 필요합니다.",
-        "data": {"api_key": "NEIS 인증키", "limited_ack": "인증키가 없으면 데이터가 불완전할 수 있음을 확인했습니다", "grade": "학년", "class_name": "반", "meal_types": "급식 유형"}
+      "meals": {"title": "급식 유형 선택", "data": {"meal_types": "급식 유형"}},
+      "reauth_confirm": {
+        "title": "NEIS 인증키 다시 설정",
+        "description": "기존 인증키가 거부되었습니다. 새 [무료 인증키]({api_key_url})를 입력하거나 제한 모드 사용을 확인하세요.",
+        "data": {"api_key": "새 NEIS 인증키", "limited_ack": "인증키 없이 제한 모드를 사용합니다"}
+      },
+      "reconfigure": {
+        "title": "NEIS 연결 재구성",
+        "description": "새 [무료 인증키]({api_key_url})를 입력하거나 제한 모드로 전환할 수 있습니다.",
+        "data": {"api_key": "새 NEIS 인증키", "limited_ack": "인증키 없이 제한 모드를 사용합니다"}
       }
     },
     "error": {
@@ -44,7 +36,34 @@
       "cannot_connect": "NEIS에 연결할 수 없습니다.",
       "class_not_found": "선택한 학년과 반을 찾을 수 없습니다.",
       "incomplete_data": "NEIS가 불완전한 샘플 데이터만 반환했습니다. 인증키를 추가한 뒤 다시 시도하세요.",
-      "limited_not_acknowledged": "인증키를 제거하기 전에 제한 사항을 확인하세요."
+      "invalid_auth": "NEIS 인증키가 올바르지 않거나 사용이 제한되었습니다.",
+      "limited_not_acknowledged": "제한 사항을 확인하거나 인증키를 입력하세요.",
+      "rate_limited": "NEIS 일일 호출 한도를 초과했습니다. 다음 날 다시 시도하세요.",
+      "school_not_found": "지원되는 학교를 찾지 못했습니다. 학교 이름을 더 정확히 입력하세요."
+    },
+    "abort": {
+      "already_configured": "같은 학교, 학년과 반이 이미 설정되어 있습니다.",
+      "reauth_successful": "NEIS 인증 정보를 업데이트했습니다.",
+      "reconfigure_successful": "NEIS 연결 설정을 업데이트했습니다.",
+      "unknown": "설정을 계속할 수 없습니다. 다시 시작하세요."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "나이스 학교생활 옵션",
+        "description": "학년, 반 또는 사용할 급식 유형을 변경합니다. 인증키는 통합 구성요소의 재구성 메뉴에서 변경할 수 있습니다.",
+        "data": {"grade": "학년", "class_name": "반", "meal_types": "급식 유형"}
+      }
+    },
+    "error": {
+      "api_error": "NEIS가 요청을 거부했습니다. 인증키와 입력값을 확인하세요.",
+      "already_configured": "같은 학교, 학년과 반이 이미 설정되어 있습니다.",
+      "cannot_connect": "NEIS에 연결할 수 없습니다.",
+      "class_not_found": "선택한 학년과 반을 찾을 수 없습니다.",
+      "incomplete_data": "NEIS가 불완전한 샘플 데이터만 반환했습니다. 인증키를 추가한 뒤 다시 시도하세요.",
+      "invalid_auth": "NEIS 인증키가 올바르지 않거나 사용이 제한되었습니다.",
+      "rate_limited": "NEIS 일일 호출 한도를 초과했습니다. 다음 날 다시 시도하세요."
     }
   },
   "selector": {"meal_types": {"options": {"1": "조식", "2": "중식", "3": "석식"}}},
@@ -73,7 +92,7 @@
   "issues": {
     "incomplete_data": {
       "title": "NEIS 데이터가 불완전합니다",
-      "description": "영향받은 데이터는 {sources}입니다. 통합 구성요소 옵션에서 무료 NEIS 인증키를 추가한 뒤 다시 시도하세요."
+      "description": "영향받은 데이터는 {sources}입니다. 통합 구성요소 재구성 메뉴에서 무료 NEIS 인증키를 추가한 뒤 다시 시도하세요."
     }
   }
 }

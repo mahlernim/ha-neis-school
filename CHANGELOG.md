@@ -1,5 +1,28 @@
 # Changelog
 
+## 0.1.0-beta.3
+
+### Added
+
+- Add reauthentication and proactive API-key reconfiguration.
+- Add scheduled and manually dispatched compatibility validation.
+
+### Changed
+
+- Allow separate profiles for different grades or classes at the same school.
+- Keep empty but complete timetable responses available with a status attribute.
+- Cache calendar range requests and reuse the coordinator's schedule data.
+- Store credentials in config entry data and keep student preferences in options.
+- Use only the currently supported HACS manifest keys.
+
+### Fixed
+
+- Preserve existing entity and device registry customizations while migrating to
+  entry-scoped identifiers.
+- Mark entities unavailable when NEIS refreshes fail instead of silently reporting
+  stale data as a successful update.
+- Remove entry-scoped repair issues when the integration unloads.
+
 ## 0.1.0-beta.2
 
 ### Added
