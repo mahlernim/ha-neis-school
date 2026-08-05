@@ -4,7 +4,7 @@
     "step": {
       "user": {
         "title": "Connect to NEIS",
-        "description": "An API key is optional, but requests without one are limited to the first five sample rows and ignore pagination. A six-period timetable can therefore lose period 6. [Request a free API key](https://open.neis.go.kr/portal/guide/actKeyPage.do) or acknowledge limited mode.",
+        "description": "An API key is optional, but requests without one are limited to the first five sample rows and ignore pagination. A six-period timetable can therefore lose period 6. [Request a free API key]({api_key_url}) or acknowledge limited mode.",
         "data": {
           "api_key": "NEIS API key",
           "limited_ack": "I understand that data can be incomplete without an API key"

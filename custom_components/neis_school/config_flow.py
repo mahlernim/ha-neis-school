@@ -30,6 +30,8 @@ from .const import (
     SCHOOL_KIND_ENDPOINTS,
 )
 
+API_KEY_URL = "https://open.neis.go.kr/portal/guide/actKeyPage.do"
+
 
 def _academic_year(today: date | None = None) -> int:
     """Return the Korean academic year for a date."""
@@ -89,7 +91,12 @@ class NeisSchoolConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 vol.Optional(CONF_LIMITED_ACK, default=False): bool,
             }
         )
-        return self.async_show_form(step_id="user", data_schema=schema, errors=errors)
+        return self.async_show_form(
+            step_id="user",
+            data_schema=schema,
+            errors=errors,
+            description_placeholders={"api_key_url": API_KEY_URL},
+        )
 
     async def async_step_school(
         self, user_input: dict[str, Any] | None = None
