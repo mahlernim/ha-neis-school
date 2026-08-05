@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.1.0
+
+First stable release of NEIS School for Home Assistant.
+
+### Changed
+
+- Count only valid timetable lessons in the sensor state so empty vacation-day
+  rows report `0` consistently with their attributes and TTS text.
+- Make the copy-ready TTS automations run only on schooldays and skip missing
+  meals.
+- Clarify limited-mode setup, sensor states, and browser-cache troubleshooting.
+- Provide Korean-first GitHub issue forms.
+
 ## 0.1.0-beta.3
 
 ### Added

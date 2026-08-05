@@ -101,3 +101,36 @@ def test_empty_complete_timetable_remains_available() -> None:
     assert sensor.available
     assert sensor.native_value == 0
     assert sensor.extra_state_attributes["status"] == "no_timetable"
+
+
+def test_timetable_state_counts_only_valid_lessons() -> None:
+    target_date = date(2026, 8, 5)
+    raw_rows = tuple(
+        {"PERIO": str(period), "ITRT_CNTNT": None} for period in range(1, 9)
+    )
+    response = NeisResponse(raw_rows, len(raw_rows), True, "INFO-000")
+    coordinator = SimpleNamespace(
+        last_update_success=True,
+        data=SimpleNamespace(
+            local_date=target_date,
+            timetables={target_date: response},
+            schedules={target_date: NeisResponse.empty()},
+        ),
+        grade=6,
+        class_name="2",
+        school_code="7201202",
+        entry=SimpleNamespace(
+            entry_id="entry-id",
+            title="테스트학교 6학년 2반",
+            data={
+                CONF_SCHOOL_NAME: "테스트학교",
+                CONF_SCHOOL_KIND: "초등학교",
+                CONF_SCHOOL_HOMEPAGE: None,
+            },
+        ),
+    )
+    sensor = NeisTimetableSensor(coordinator, 0)
+
+    assert sensor.native_value == 0
+    assert sensor.extra_state_attributes["period_count"] == 0
+    assert sensor.extra_state_attributes["timetable_tts"] == ""

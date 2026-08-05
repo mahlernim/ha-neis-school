@@ -325,7 +325,8 @@ class NeisTimetableSensor(NeisSchoolEntity, SensorEntity):
     @property
     def native_value(self) -> int:
         response = self.coordinator.data.timetables[self._target_date]
-        return len(response.rows)
+        lessons, _, _ = format_timetable(self._target_date, response.rows)
+        return len(lessons)
 
     @property
     def extra_state_attributes(self) -> dict[str, Any]:
