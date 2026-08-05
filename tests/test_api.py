@@ -13,7 +13,7 @@ from custom_components.neis_school.api import NeisAPI
 
 
 @pytest.fixture(autouse=True)
-def allow_local_test_server(enable_socket) -> None:
+def allow_local_test_server(socket_enabled) -> None:
     """Allow aiohttp to bind the loopback test server."""
 
 FIXTURES = Path(__file__).parent / "fixtures"
