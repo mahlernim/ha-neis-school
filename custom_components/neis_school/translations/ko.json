@@ -4,7 +4,7 @@
     "step": {
       "user": {
         "title": "NEIS 연결",
-        "description": "인증키는 선택 사항이지만, 인증키가 없으면 첫 5건의 샘플만 반환되고 페이지 지정도 무시됩니다. 예를 들어 6교시 시간표에서 6교시가 누락될 수 있습니다. [무료 인증키 발급]({api_key_url})을 이용하거나 제한 모드를 확인해 주세요.",
+        "description": "인증키 없이 제한 모드를 사용할 수도 있지만 시간표나 학사일정이 불완전할 수 있습니다. 안정적인 사용을 위해 [무료 인증키 발급]({api_key_url})을 권장합니다.",
         "data": {"api_key": "NEIS 인증키", "limited_ack": "인증키가 없으면 데이터가 불완전할 수 있음을 확인했습니다"}
       },
       "school": {
@@ -35,15 +35,16 @@
     "step": {
       "init": {
         "title": "나이스 학교생활 옵션",
-        "description": "인증키, 학년, 반 또는 사용할 급식 유형을 변경합니다.",
-        "data": {"api_key": "NEIS 인증키", "grade": "학년", "class_name": "반", "meal_types": "급식 유형"}
+        "description": "인증키, 학년, 반 또는 사용할 급식 유형을 변경합니다. 인증키를 제거하면 제한 모드가 되며 확인이 필요합니다.",
+        "data": {"api_key": "NEIS 인증키", "limited_ack": "인증키가 없으면 데이터가 불완전할 수 있음을 확인했습니다", "grade": "학년", "class_name": "반", "meal_types": "급식 유형"}
       }
     },
     "error": {
       "api_error": "NEIS가 요청을 거부했습니다. 인증키와 입력값을 확인하세요.",
       "cannot_connect": "NEIS에 연결할 수 없습니다.",
       "class_not_found": "선택한 학년과 반을 찾을 수 없습니다.",
-      "incomplete_data": "NEIS가 불완전한 샘플 데이터만 반환했습니다. 인증키를 추가한 뒤 다시 시도하세요."
+      "incomplete_data": "NEIS가 불완전한 샘플 데이터만 반환했습니다. 인증키를 추가한 뒤 다시 시도하세요.",
+      "limited_not_acknowledged": "인증키를 제거하기 전에 제한 사항을 확인하세요."
     }
   },
   "selector": {"meal_types": {"options": {"1": "조식", "2": "중식", "3": "석식"}}},
@@ -55,7 +56,7 @@
       "lunch_tomorrow": {"name": "내일 중식", "state": {"available": "급식 있음", "no_meal": "급식 없음"}},
       "dinner_today": {"name": "오늘 석식", "state": {"available": "급식 있음", "no_meal": "급식 없음"}},
       "dinner_tomorrow": {"name": "내일 석식", "state": {"available": "급식 있음", "no_meal": "급식 없음"}},
-      "schedule_today": {"name": "오늘 학사일정"},
+      "schedule_today": {"name": "오늘 학사일정", "state": {"scheduled": "일정 있음", "none": "일정 없음"}},
       "next_school_event": {"name": "다음 학교행사"},
       "next_schoolday": {"name": "다음 등교일"},
       "timetable_today": {"name": "오늘 시간표"},
@@ -72,7 +73,7 @@
   "issues": {
     "incomplete_data": {
       "title": "NEIS 데이터가 불완전합니다",
-      "description": "영향받은 데이터는 {sources}입니다. 인증키가 없는 요청은 첫 5건만 반환될 수 있습니다. 통합 구성요소 옵션에서 무료 NEIS 인증키를 추가하세요."
+      "description": "영향받은 데이터는 {sources}입니다. 통합 구성요소 옵션에서 무료 NEIS 인증키를 추가한 뒤 다시 시도하세요."
     }
   }
 }

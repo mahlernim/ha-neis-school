@@ -26,6 +26,7 @@ UPDATE_INTERVAL: Final = timedelta(hours=3)
 SCHEDULE_LOOKAHEAD_DAYS: Final = 90
 REQUEST_TIMEOUT_SECONDS: Final = 10
 PAGE_SIZE: Final = 1000
+MAX_PAGES: Final = 100
 
 ISSUE_INCOMPLETE_DATA: Final = "incomplete_data"
 

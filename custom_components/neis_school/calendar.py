@@ -29,6 +29,7 @@ class NeisSchoolCalendar(NeisSchoolEntity, CalendarEntity):
     """Read-only, grade-filtered NEIS academic calendar."""
 
     _attr_translation_key = "school_calendar"
+    _attr_entity_registry_enabled_default = False
 
     def __init__(self, coordinator: NeisSchoolCoordinator) -> None:
         super().__init__(coordinator)

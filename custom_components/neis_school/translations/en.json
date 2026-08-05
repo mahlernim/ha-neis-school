@@ -1,5 +1,82 @@
 {
   "title": "NEIS School",
+  "config": {
+    "step": {
+      "user": {
+        "title": "Connect to NEIS",
+        "description": "You can use limited mode without an API key, but timetables or academic schedules may be incomplete. For reliable operation, [request a free API key]({api_key_url}).",
+        "data": {
+          "api_key": "NEIS API key",
+          "limited_ack": "I understand that data can be incomplete without an API key"
+        }
+      },
+      "school": {
+        "title": "Find a school",
+        "description": "Choose an education office and enter part or all of the school name.",
+        "data": {
+          "office_code": "Education office",
+          "school_name": "School name"
+        }
+      },
+      "select_school": {
+        "title": "Select a school",
+        "data": {"school_code": "School"}
+      },
+      "grade": {
+        "title": "Select a grade",
+        "data": {"grade": "Grade"}
+      },
+      "class": {
+        "title": "Select a class",
+        "description": "With an API key, available classes are listed automatically. Limited mode validates the class you enter.",
+        "data": {"class_name": "Class"}
+      },
+      "meals": {
+        "title": "Select meals",
+        "data": {"meal_types": "Meal types"}
+      }
+    },
+    "error": {
+      "api_error": "NEIS rejected the request. Check the API key and input.",
+      "cannot_connect": "Could not connect to NEIS.",
+      "class_not_found": "The selected grade and class were not found.",
+      "incomplete_data": "NEIS returned incomplete sample data. Add an API key and try again.",
+      "limited_not_acknowledged": "Acknowledge the limitation or enter an API key.",
+      "school_not_found": "No supported school was found. Refine the school name."
+    },
+    "abort": {"already_configured": "This school is already configured."}
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "NEIS School options",
+        "description": "Update the API key, grade, class, or enabled meal types. Removing the API key enables limited mode and requires acknowledgement.",
+        "data": {
+          "api_key": "NEIS API key",
+          "limited_ack": "I understand that data can be incomplete without an API key",
+          "grade": "Grade",
+          "class_name": "Class",
+          "meal_types": "Meal types"
+        }
+      }
+    },
+    "error": {
+      "api_error": "NEIS rejected the request. Check the API key and input.",
+      "cannot_connect": "Could not connect to NEIS.",
+      "class_not_found": "The selected grade and class were not found.",
+      "incomplete_data": "NEIS returned incomplete sample data. Add an API key and try again.",
+      "limited_not_acknowledged": "Acknowledge the limitation before removing the API key."
+    }
+  },
+  "selector": {
+    "meal_types": {
+      "options": {
+        "1": "Breakfast",
+        "2": "Lunch",
+        "3": "Dinner"
+      }
+    }
+  },
   "entity": {
     "sensor": {
       "breakfast_today": {"name": "Breakfast today", "state": {"available": "Available", "no_meal": "No meal"}},
@@ -8,7 +85,7 @@
       "lunch_tomorrow": {"name": "Lunch tomorrow", "state": {"available": "Available", "no_meal": "No meal"}},
       "dinner_today": {"name": "Dinner today", "state": {"available": "Available", "no_meal": "No meal"}},
       "dinner_tomorrow": {"name": "Dinner tomorrow", "state": {"available": "Available", "no_meal": "No meal"}},
-      "schedule_today": {"name": "Schedule today"},
+      "schedule_today": {"name": "Schedule today", "state": {"scheduled": "Scheduled", "none": "None"}},
       "next_school_event": {"name": "Next school event"},
       "next_schoolday": {"name": "Next schoolday"},
       "timetable_today": {"name": "Timetable today"},
@@ -25,7 +102,7 @@
   "issues": {
     "incomplete_data": {
       "title": "NEIS returned incomplete data",
-      "description": "The affected data sources are {sources}. Requests without an API key may return only the first five rows. Add a free NEIS API key in the integration options."
+      "description": "The affected data sources are {sources}. Add a free NEIS API key in the integration options, then try again."
     }
   }
 }

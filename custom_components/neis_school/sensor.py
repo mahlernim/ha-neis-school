@@ -16,6 +16,7 @@ from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from .const import (
     CONF_MEAL_TYPES,
+    CONF_SCHOOL_NAME,
     MEAL_BREAKFAST,
     MEAL_DINNER,
     MEAL_LUNCH,
@@ -27,6 +28,8 @@ from .helpers import (
     applicable_schedule_rows,
     clean_menu,
     evaluate_schoolday,
+    format_meal_tts,
+    format_timetable,
     next_schoolday,
     parse_allergens,
     parse_calories,
@@ -107,20 +110,29 @@ class NeisMealSensor(NeisSchoolEntity, SensorEntity):
     def extra_state_attributes(self) -> dict[str, Any]:
         """Return meal details."""
         row = self._row
+        school_name = str(self.coordinator.entry.data.get(CONF_SCHOOL_NAME) or "")
+        meal_name = {
+            MEAL_BREAKFAST: "조식",
+            MEAL_LUNCH: "중식",
+            MEAL_DINNER: "석식",
+        }[self._meal_type]
         attributes: dict[str, Any] = {
             "date": self._target_date.isoformat(),
             "api_mode": "full" if self.coordinator.api.has_api_key else "limited",
             "data_complete": self.available,
+            "menu": "",
+            "menu_tts": format_meal_tts(
+                self._target_date, school_name, meal_name, ""
+            ),
         }
         if row is None:
             return attributes
         raw_menu = str(row.get("DDISH_NM", ""))
         menu = clean_menu(raw_menu)
-        school_name = str(row.get("SCHUL_NM", ""))
-        meal_name = str(row.get("MMEAL_SC_NM", "급식"))
-        menu_tts = (
-            f"{self._target_date.month}월 {self._target_date.day}일 "
-            f"{school_name} {meal_name}은 {menu}입니다."
+        school_name = str(row.get("SCHUL_NM") or school_name)
+        meal_name = str(row.get("MMEAL_SC_NM") or meal_name)
+        menu_tts = format_meal_tts(
+            self._target_date, school_name, meal_name, menu
         )
         attributes.update(
             {
@@ -159,7 +171,11 @@ class NeisScheduleTodaySensor(NeisSchoolEntity, SensorEntity):
     """Today's applicable school schedule."""
 
     _attr_translation_key = "schedule_today"
-    _unrecorded_attributes = frozenset({"events"})
+    _attr_device_class = SensorDeviceClass.ENUM
+    _attr_options: ClassVar[list[str]] = ["scheduled", "none"]
+    _unrecorded_attributes = frozenset(
+        {"events", "schedule_text", "schedule_tts"}
+    )
 
     def __init__(self, coordinator: NeisSchoolCoordinator) -> None:
         super().__init__(coordinator)
@@ -172,18 +188,17 @@ class NeisScheduleTodaySensor(NeisSchoolEntity, SensorEntity):
 
     @property
     def native_value(self) -> str:
-        rows = applicable_schedule_rows(
-            self.coordinator.data.schedules[self.coordinator.data.local_date],
-            self.coordinator.grade,
-        )
-        names = [str(row.get("EVENT_NM", "")).strip() for row in rows]
-        names = [name for name in names if name]
-        return ", ".join(names) if names else "none"
+        return "scheduled" if self._event_names else "none"
 
     @property
     def extra_state_attributes(self) -> dict[str, Any]:
         response = self.coordinator.data.schedules[self.coordinator.data.local_date]
         rows = applicable_schedule_rows(response, self.coordinator.grade)
+        schedule_text, schedule_tts = _format_schedule_for_tts(
+            self.coordinator.data.local_date,
+            str(self.coordinator.entry.data[CONF_SCHOOL_NAME]),
+            self._event_names,
+        )
         return {
             "date": self.coordinator.data.local_date.isoformat(),
             "events": [
@@ -194,8 +209,37 @@ class NeisScheduleTodaySensor(NeisSchoolEntity, SensorEntity):
                 }
                 for row in rows
             ],
+            "schedule_text": schedule_text,
+            "schedule_tts": schedule_tts,
             "data_complete": response.complete,
         }
+
+    @property
+    def _event_names(self) -> list[str]:
+        """Return non-empty applicable event names."""
+        rows = applicable_schedule_rows(
+            self.coordinator.data.schedules[self.coordinator.data.local_date],
+            self.coordinator.grade,
+        )
+        return [
+            name
+            for row in rows
+            if (name := str(row.get("EVENT_NM", "")).strip())
+        ]
+
+
+def _format_schedule_for_tts(
+    target_date: date, school_name: str, event_names: list[str]
+) -> tuple[str, str]:
+    """Return display and Korean TTS text for one day's schedule."""
+    schedule_text = ", ".join(event_names)
+    date_text = f"{target_date.month}월 {target_date.day}일"
+    if schedule_text:
+        return (
+            schedule_text,
+            f"{date_text} {school_name} 학사일정은 {schedule_text}입니다.",
+        )
+    return "", f"{date_text} {school_name}에 등록된 학사일정은 없습니다."
 
 
 class NeisNextEventSensor(NeisSchoolEntity, SensorEntity):
@@ -301,21 +345,8 @@ class NeisTimetableSensor(NeisSchoolEntity, SensorEntity):
     @property
     def extra_state_attributes(self) -> dict[str, Any]:
         response = self.coordinator.data.timetables[self._target_date]
-        lessons = [
-            {
-                "period": int(row.get("PERIO", 0)),
-                "subject": str(row.get("ITRT_CNTNT", "")),
-            }
-            for row in sorted(response.rows, key=lambda item: int(item.get("PERIO", 0)))
-        ]
-        text = ", ".join(
-            f"{lesson['period']}교시 {lesson['subject']}" for lesson in lessons
-        )
-        timetable_tts = (
-            f"{self._target_date.month}월 {self._target_date.day}일 "
-            f"시간표는 {text}입니다."
-            if text
-            else ""
+        lessons, text, timetable_tts = format_timetable(
+            self._target_date, response.rows
         )
         status = "available" if lessons else self._schoolday.reason
         return {

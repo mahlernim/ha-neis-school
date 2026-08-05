@@ -79,8 +79,46 @@ def clean_menu(raw_menu: str | None) -> str:
     cleaned = _BREAK_RE.sub(", ", cleaned).replace("/", ", ")
     cleaned = _SPECIAL_RE.sub("", cleaned)
     cleaned = re.sub(r"\s+", " ", cleaned)
-    cleaned = re.sub(r",\s*,", ",", cleaned)
+    cleaned = re.sub(r"\s*,\s*", ", ", cleaned)
+    cleaned = re.sub(r"(?:,\s*){2,}", ", ", cleaned)
     return cleaned.strip(", ")
+
+
+def format_meal_tts(
+    target_date: date, school_name: str, meal_name: str, menu: str
+) -> str:
+    """Return a natural Korean meal announcement, including no-meal days."""
+    prefix = f"{target_date.month}월 {target_date.day}일 {school_name}"
+    if not menu:
+        return f"{prefix}에는 {meal_name}이 없습니다."
+    return f"{prefix} {meal_name} 메뉴는 {menu}입니다."
+
+
+def format_timetable(
+    target_date: date, rows: tuple[dict[str, Any], ...]
+) -> tuple[list[dict[str, Any]], str, str]:
+    """Return normalized timetable data and text without null placeholders."""
+    lessons: list[dict[str, Any]] = []
+    for row in rows:
+        try:
+            period = int(row.get("PERIO") or 0)
+        except (TypeError, ValueError):
+            continue
+        subject = str(row.get("ITRT_CNTNT") or "").strip()
+        if period < 1 or not subject:
+            continue
+        lessons.append({"period": period, "subject": subject})
+
+    lessons.sort(key=lambda lesson: lesson["period"])
+    text = ", ".join(
+        f"{lesson['period']}교시 {lesson['subject']}" for lesson in lessons
+    )
+    tts = (
+        f"{target_date.month}월 {target_date.day}일 시간표는 {text}입니다."
+        if text
+        else ""
+    )
+    return lessons, text, tts
 
 
 def parse_allergens(raw_menu: str | None) -> list[int]:

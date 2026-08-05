@@ -1,5 +1,8 @@
 {
+  "country": "KR",
+  "filename": "neis_school.zip",
   "name": "홈어시스턴트 나이스 학교생활",
   "homeassistant": "2025.12.0",
-  "render_readme": true
+  "render_readme": true,
+  "zip_release": true
 }

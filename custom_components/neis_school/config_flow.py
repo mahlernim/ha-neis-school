@@ -10,6 +10,7 @@ from homeassistant import config_entries
 from homeassistant.data_entry_flow import FlowResult
 from homeassistant.helpers import selector
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
+from homeassistant.util import dt as dt_util
 
 from .api import NeisAPI, NeisApiError, NeisConnectionError
 from .const import (
@@ -35,7 +36,7 @@ API_KEY_URL = "https://open.neis.go.kr/portal/guide/actKeyPage.do"
 
 def _academic_year(today: date | None = None) -> int:
     """Return the Korean academic year for a date."""
-    current = today or date.today()
+    current = today or dt_util.now().date()
     return current.year if current.month >= 3 else current.year - 1
 
 
@@ -53,6 +54,26 @@ def _meal_selector() -> selector.SelectSelector:
             mode=selector.SelectSelectorMode.LIST,
             translation_key=CONF_MEAL_TYPES,
         )
+    )
+
+
+def _meal_schema() -> vol.Schema:
+    """Require at least one enabled meal type."""
+    return vol.All(_meal_selector(), vol.Length(min=1))
+
+
+def _grade_schema(school_kind: str) -> vol.Schema:
+    """Return a grade dropdown restricted to the school type."""
+    maximum = 3 if school_kind in {"중학교", "고등학교"} else 6
+    return vol.All(
+        selector.SelectSelector(
+            selector.SelectSelectorConfig(
+                options=[str(grade) for grade in range(1, maximum + 1)],
+                mode=selector.SelectSelectorMode.DROPDOWN,
+            )
+        ),
+        vol.Coerce(int),
+        vol.Range(min=1, max=maximum),
     )
 
 
@@ -170,7 +191,11 @@ class NeisSchoolConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         return self.async_show_form(
             step_id="grade",
             data_schema=vol.Schema(
-                {vol.Required(CONF_GRADE): vol.All(vol.Coerce(int), vol.Range(1, 6))}
+                {
+                    vol.Required(CONF_GRADE): _grade_schema(
+                        str(self._school["SCHUL_KND_SC_NM"])
+                    )
+                }
             ),
         )
 
@@ -199,6 +224,12 @@ class NeisSchoolConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     step_id="class",
                     data_schema=vol.Schema({vol.Required(CONF_CLASS_NAME): str}),
                     errors={"base": "api_error"},
+                )
+            if not result.complete:
+                return self.async_show_form(
+                    step_id="class",
+                    data_schema=vol.Schema({vol.Required(CONF_CLASS_NAME): str}),
+                    errors={"base": "incomplete_data"},
                 )
             choices = {
                 str(row["CLASS_NM"]): str(row["CLASS_NM"]) for row in result.rows
@@ -268,7 +299,7 @@ class NeisSchoolConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 {
                     vol.Required(
                         CONF_MEAL_TYPES, default=DEFAULT_MEAL_TYPES
-                    ): _meal_selector()
+                    ): _meal_schema()
                 }
             ),
         )
@@ -295,6 +326,13 @@ class NeisSchoolOptionsFlow(config_entries.OptionsFlow):
         current = self._entry.options
         if user_input is not None:
             api_key = str(user_input.get(CONF_API_KEY, "")).strip() or None
+            if (
+                current.get(CONF_API_KEY)
+                and not api_key
+                and not user_input.get(CONF_LIMITED_ACK, False)
+            ):
+                errors["base"] = "limited_not_acknowledged"
+                return self._show_options_form(user_input, errors)
             api = NeisAPI(async_get_clientsession(self.hass), api_key)
             try:
                 result = await api.get_classes(
@@ -324,21 +362,35 @@ class NeisSchoolOptionsFlow(config_entries.OptionsFlow):
                         },
                     )
 
+        return self._show_options_form(user_input, errors)
+
+    def _show_options_form(
+        self,
+        user_input: dict[str, Any] | None,
+        errors: dict[str, str],
+    ) -> FlowResult:
+        """Show the options form with safe defaults."""
+        current = self._entry.options
+        defaults = user_input or current
         schema = vol.Schema(
             {
                 vol.Optional(
-                    CONF_API_KEY, default=current.get(CONF_API_KEY) or ""
+                    CONF_API_KEY, default=defaults.get(CONF_API_KEY) or ""
                 ): _password_selector(),
-                vol.Required(CONF_GRADE, default=current.get(CONF_GRADE, 1)): vol.All(
-                    vol.Coerce(int), vol.Range(1, 6)
-                ),
+                vol.Optional(
+                    CONF_LIMITED_ACK,
+                    default=not bool(defaults.get(CONF_API_KEY)),
+                ): bool,
                 vol.Required(
-                    CONF_CLASS_NAME, default=current.get(CONF_CLASS_NAME, "1")
+                    CONF_GRADE, default=str(defaults.get(CONF_GRADE, 1))
+                ): _grade_schema(str(self._entry.data[CONF_SCHOOL_KIND])),
+                vol.Required(
+                    CONF_CLASS_NAME, default=defaults.get(CONF_CLASS_NAME, "1")
                 ): str,
                 vol.Required(
                     CONF_MEAL_TYPES,
-                    default=current.get(CONF_MEAL_TYPES, DEFAULT_MEAL_TYPES),
-                ): _meal_selector(),
+                    default=defaults.get(CONF_MEAL_TYPES, DEFAULT_MEAL_TYPES),
+                ): _meal_schema(),
             }
         )
         return self.async_show_form(step_id="init", data_schema=schema, errors=errors)

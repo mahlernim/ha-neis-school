@@ -37,6 +37,9 @@ class NeisCoordinatorData:
     timetables: dict[date, NeisResponse]
     upcoming_schedule: NeisResponse
     last_success: datetime
+    last_attempt: datetime
+    last_error: str | None = None
+    retained_after_error: bool = False
     incomplete_sources: set[str] = field(default_factory=set)
 
 

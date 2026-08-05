@@ -9,7 +9,7 @@ import pytest
 from aiohttp import web
 
 from custom_components.neis_school import api as api_module
-from custom_components.neis_school.api import NeisAPI
+from custom_components.neis_school.api import NeisAPI, NeisApiError
 
 
 @pytest.fixture(autouse=True)
@@ -64,6 +64,42 @@ async def test_authenticated_response_paginates(aiohttp_client, monkeypatch) -> 
     )
     assert [row["CLASS_NM"] for row in response.rows] == ["1", "2", "3", "4", "5", "6"]
     assert response.complete is True
+
+
+@pytest.mark.asyncio
+async def test_authenticated_repeated_page_is_rejected(
+    aiohttp_client, monkeypatch
+) -> None:
+    """A repeated page must not be counted as complete data."""
+    app = web.Application()
+
+    async def handler(_request):
+        return web.json_response(load_fixture("class_limited.json"))
+
+    app.router.add_get("/classInfo", handler)
+    client = await aiohttp_client(app)
+    monkeypatch.setattr(api_module, "BASE_URL", str(client.make_url("/")).rstrip("/"))
+
+    with pytest.raises(NeisApiError, match="repeated page"):
+        await NeisAPI(client.session, "test-key").get_classes(
+            "C10", "7201202", 2026, 6
+        )
+
+
+@pytest.mark.asyncio
+async def test_non_object_json_is_rejected(aiohttp_client, monkeypatch) -> None:
+    """Valid JSON with the wrong top-level type is a sanitized API error."""
+    app = web.Application()
+
+    async def handler(_request):
+        return web.json_response([])
+
+    app.router.add_get("/classInfo", handler)
+    client = await aiohttp_client(app)
+    monkeypatch.setattr(api_module, "BASE_URL", str(client.make_url("/")).rstrip("/"))
+
+    with pytest.raises(NeisApiError, match="Expected a JSON object"):
+        await NeisAPI(client.session).get_classes("C10", "7201202", 2026, 6)
 
 
 @pytest.mark.asyncio

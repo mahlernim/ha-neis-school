@@ -10,7 +10,7 @@ from typing import Any
 
 from aiohttp import ClientError, ClientSession
 
-from .const import PAGE_SIZE, REQUEST_TIMEOUT_SECONDS, SCHOOL_KIND_ENDPOINTS
+from .const import MAX_PAGES, PAGE_SIZE, REQUEST_TIMEOUT_SECONDS, SCHOOL_KIND_ENDPOINTS
 from .models import NeisResponse
 
 BASE_URL = "https://open.neis.go.kr/hub"
@@ -63,17 +63,35 @@ class NeisAPI:
 
         page = 1
         rows: list[dict[str, Any]] = []
-        total_count = 0
+        total_count: int | None = None
         result_code = "INFO-000"
+        page_signatures: set[str] = set()
         while True:
+            if page > MAX_PAGES:
+                raise NeisApiError(
+                    "INVALID_PAGINATION", "Response exceeded the page safety limit"
+                )
             page_params = {
                 **base_params,
                 "pIndex": page,
                 "pSize": PAGE_SIZE,
             }
             response = await self._request_page(endpoint, page_params)
-            total_count = response.total_count
+            if total_count is None:
+                total_count = response.total_count
+            elif response.total_count != total_count:
+                raise NeisApiError(
+                    "INVALID_PAGINATION", "Total count changed between pages"
+                )
             result_code = response.result_code
+            signature = json.dumps(
+                response.rows, ensure_ascii=False, sort_keys=True, default=str
+            )
+            if response.rows and signature in page_signatures:
+                raise NeisApiError(
+                    "INVALID_PAGINATION", "NEIS returned a repeated page"
+                )
+            page_signatures.add(signature)
             rows.extend(response.rows)
             if not response.rows or len(rows) >= total_count:
                 break
@@ -81,7 +99,7 @@ class NeisAPI:
 
         return NeisResponse(
             tuple(rows),
-            total_count,
+            total_count or 0,
             len(rows) >= total_count,
             result_code,
         )
@@ -100,8 +118,13 @@ class NeisAPI:
         except (TimeoutError, ClientError, json.JSONDecodeError, ValueError) as err:
             raise NeisConnectionError("Unable to communicate with NEIS") from err
 
+        if not isinstance(payload, Mapping):
+            raise NeisApiError("INVALID_RESPONSE", "Expected a JSON object")
+
         direct_result = payload.get("RESULT")
         if direct_result:
+            if not isinstance(direct_result, Mapping):
+                raise NeisApiError("INVALID_RESPONSE", "Invalid result metadata")
             code = str(direct_result.get("CODE", "ERROR"))
             if code == "INFO-200":
                 return NeisResponse.empty(code)
@@ -110,22 +133,44 @@ class NeisAPI:
         container = payload.get(endpoint)
         if not isinstance(container, list) or len(container) < 2:
             raise NeisApiError("INVALID_RESPONSE", "Unexpected response structure")
+        if not isinstance(container[0], Mapping) or not isinstance(
+            container[1], Mapping
+        ):
+            raise NeisApiError("INVALID_RESPONSE", "Invalid response sections")
 
         head = container[0].get("head", [])
+        if not isinstance(head, list):
+            raise NeisApiError("INVALID_RESPONSE", "Invalid response metadata")
         total_count = 0
         result_code = "INFO-000"
         for item in head:
+            if not isinstance(item, Mapping):
+                raise NeisApiError("INVALID_RESPONSE", "Invalid response metadata")
             if "list_total_count" in item:
-                total_count = int(item["list_total_count"])
+                try:
+                    total_count = int(item["list_total_count"])
+                except (TypeError, ValueError) as err:
+                    raise NeisApiError(
+                        "INVALID_RESPONSE", "Invalid total row count"
+                    ) from err
             if "RESULT" in item:
                 result = item["RESULT"]
+                if not isinstance(result, Mapping):
+                    raise NeisApiError("INVALID_RESPONSE", "Invalid result metadata")
                 result_code = str(result.get("CODE", "ERROR"))
                 if result_code not in ("INFO-000", "INFO-200"):
                     raise NeisApiError(
                         result_code, str(result.get("MESSAGE", "Unknown error"))
                     )
 
-        rows = tuple(container[1].get("row", []))
+        raw_rows = container[1].get("row", [])
+        if not isinstance(raw_rows, list) or not all(
+            isinstance(row, Mapping) for row in raw_rows
+        ):
+            raise NeisApiError("INVALID_RESPONSE", "Invalid response rows")
+        rows = tuple(dict(row) for row in raw_rows)
+        if rows and total_count == 0:
+            raise NeisApiError("INVALID_RESPONSE", "Missing total row count")
         return NeisResponse(
             rows,
             total_count,

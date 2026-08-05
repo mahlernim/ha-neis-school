@@ -87,7 +87,13 @@ class NeisSchoolCoordinator(DataUpdateCoordinator[NeisCoordinatorData]):
             )
         except NeisError as err:
             if self.data is not None and self.data.local_date == today:
-                _LOGGER.warning("NEIS update failed, preserving today's prior data")
+                self.data.last_attempt = dt_util.utcnow()
+                self.data.last_error = type(err).__name__
+                self.data.retained_after_error = True
+                _LOGGER.warning(
+                    "NEIS update failed (%s), preserving today's prior data",
+                    type(err).__name__,
+                )
                 return self.data
             raise UpdateFailed("Unable to update NEIS school data") from err
 
@@ -114,13 +120,15 @@ class NeisSchoolCoordinator(DataUpdateCoordinator[NeisCoordinatorData]):
             if not response.complete and response.result_code != "LIMITED_MODE"
         }
         self._update_incomplete_issue(sources)
+        completed_at = dt_util.utcnow()
         return NeisCoordinatorData(
             local_date=today,
             meals={today: meals_today, tomorrow: meals_tomorrow},
             schedules={today: schedule_today, tomorrow: schedule_tomorrow},
             timetables={today: timetable_today, tomorrow: timetable_tomorrow},
             upcoming_schedule=upcoming_schedule,
-            last_success=dt_util.utcnow(),
+            last_success=completed_at,
+            last_attempt=completed_at,
             incomplete_sources=sources,
         )
 
