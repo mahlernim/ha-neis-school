@@ -1,0 +1,12 @@
+{
+  "elsTimetable": [
+    {"head": [{"list_total_count": 6}, {"RESULT": {"CODE": "INFO-000", "MESSAGE": "정상 처리되었습니다."}}]},
+    {"row": [
+      {"ALL_TI_YMD": "20260305", "GRADE": "6", "CLASS_NM": "2", "PERIO": "1", "ITRT_CNTNT": "음악"},
+      {"ALL_TI_YMD": "20260305", "GRADE": "6", "CLASS_NM": "2", "PERIO": "2", "ITRT_CNTNT": "수학"},
+      {"ALL_TI_YMD": "20260305", "GRADE": "6", "CLASS_NM": "2", "PERIO": "3", "ITRT_CNTNT": "영어"},
+      {"ALL_TI_YMD": "20260305", "GRADE": "6", "CLASS_NM": "2", "PERIO": "4", "ITRT_CNTNT": "국어"},
+      {"ALL_TI_YMD": "20260305", "GRADE": "6", "CLASS_NM": "2", "PERIO": "5", "ITRT_CNTNT": "사회"}
+    ]}
+  ]
+}

@@ -1,0 +1,31 @@
+{
+  "title": "NEIS School",
+  "entity": {
+    "sensor": {
+      "breakfast_today": {"name": "Breakfast today", "state": {"available": "Available", "no_meal": "No meal"}},
+      "breakfast_tomorrow": {"name": "Breakfast tomorrow", "state": {"available": "Available", "no_meal": "No meal"}},
+      "lunch_today": {"name": "Lunch today", "state": {"available": "Available", "no_meal": "No meal"}},
+      "lunch_tomorrow": {"name": "Lunch tomorrow", "state": {"available": "Available", "no_meal": "No meal"}},
+      "dinner_today": {"name": "Dinner today", "state": {"available": "Available", "no_meal": "No meal"}},
+      "dinner_tomorrow": {"name": "Dinner tomorrow", "state": {"available": "Available", "no_meal": "No meal"}},
+      "schedule_today": {"name": "Schedule today"},
+      "next_school_event": {"name": "Next school event"},
+      "next_schoolday": {"name": "Next schoolday"},
+      "timetable_today": {"name": "Timetable today"},
+      "timetable_tomorrow": {"name": "Timetable tomorrow"},
+      "api_mode": {"name": "API mode", "state": {"full": "Full", "limited": "Limited"}},
+      "last_successful_update": {"name": "Last successful update"}
+    },
+    "binary_sensor": {
+      "schoolday_today": {"name": "Schoolday"},
+      "schoolday_tomorrow": {"name": "Schoolday tomorrow"}
+    },
+    "calendar": {"school_calendar": {"name": "Academic calendar"}}
+  },
+  "issues": {
+    "incomplete_data": {
+      "title": "NEIS returned incomplete data",
+      "description": "The affected data sources are {sources}. Requests without an API key may return only the first five rows. Add a free NEIS API key in the integration options."
+    }
+  }
+}

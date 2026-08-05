@@ -1,0 +1,15 @@
+name: Feature request
+description: Suggest a public NEIS data feature
+title: "[Feature] "
+labels: [enhancement]
+body:
+  - type: textarea
+    id: use_case
+    attributes:
+      label: Home Assistant use case
+    validations:
+      required: true
+  - type: input
+    id: endpoint
+    attributes:
+      label: Official NEIS endpoint or documentation

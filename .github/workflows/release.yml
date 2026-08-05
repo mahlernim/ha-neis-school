@@ -1,0 +1,19 @@
+name: Release
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: write
+
+jobs:
+  package:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build integration archive
+        run: cd custom_components/neis_school && zip -r ../../neis_school.zip .
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: neis_school.zip

@@ -1,0 +1,13 @@
+env.txt
+.env
+.env.*
+*.key
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+.venv/
+dist/
+*.zip

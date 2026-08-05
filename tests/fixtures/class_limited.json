@@ -1,0 +1,12 @@
+{
+  "classInfo": [
+    {"head": [{"list_total_count": 6}, {"RESULT": {"CODE": "INFO-000", "MESSAGE": "정상 처리되었습니다."}}]},
+    {"row": [
+      {"AY": "2026", "GRADE": "6", "CLASS_NM": "1"},
+      {"AY": "2026", "GRADE": "6", "CLASS_NM": "2"},
+      {"AY": "2026", "GRADE": "6", "CLASS_NM": "3"},
+      {"AY": "2026", "GRADE": "6", "CLASS_NM": "4"},
+      {"AY": "2026", "GRADE": "6", "CLASS_NM": "5"}
+    ]}
+  ]
+}

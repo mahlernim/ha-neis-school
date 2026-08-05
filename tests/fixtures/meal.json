@@ -1,0 +1,17 @@
+{
+  "mealServiceDietInfo": [
+    {"head": [{"list_total_count": 1}, {"RESULT": {"CODE": "INFO-000", "MESSAGE": "정상 처리되었습니다."}}]},
+    {"row": [{
+      "SCHUL_NM": "화정초등학교",
+      "MMEAL_SC_CODE": "2",
+      "MMEAL_SC_NM": "중식",
+      "MLSV_YMD": "20260305",
+      "MLSV_FGR": 719.0,
+      "DDISH_NM": "귀리밥 <br/>육개장 (2.5.6.9.16.18)<br/>♥한라봉",
+      "ORPLC_INFO": "쇠고기 : 국내산<br/>쌀 : 국내산",
+      "CAL_INFO": "676.2 Kcal",
+      "NTR_INFO": "탄수화물(g) : 73.8<br/>단백질(g) : 20.7",
+      "LOAD_DTM": "20260312"
+    }]}
+  ]
+}
