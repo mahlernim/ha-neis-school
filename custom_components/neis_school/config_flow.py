@@ -116,7 +116,7 @@ class NeisSchoolConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 errors["base"] = "cannot_connect"
             else:
                 supported = {
-                    str(row[CONF_SCHOOL_CODE]): row
+                    str(row["SD_SCHUL_CODE"]): row
                     for row in result.rows
                     if row.get("SCHUL_KND_SC_NM") in SCHOOL_KIND_ENDPOINTS
                 }

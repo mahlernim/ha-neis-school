@@ -3,6 +3,7 @@
 from unittest.mock import AsyncMock, patch
 
 from homeassistant import config_entries
+from homeassistant.data_entry_flow import FlowResultType
 
 from custom_components.neis_school.const import (
     CONF_API_KEY,
@@ -25,7 +26,7 @@ async def test_limited_mode_requires_acknowledgement(hass) -> None:
     result = await hass.config_entries.flow.async_configure(
         result["flow_id"], {CONF_API_KEY: "", CONF_LIMITED_ACK: False}
     )
-    assert result["type"] is config_entries.FlowResultType.FORM
+    assert result["type"] is FlowResultType.FORM
     assert result["errors"] == {"base": "limited_not_acknowledged"}
 
 
@@ -83,7 +84,7 @@ async def test_complete_setup_with_api_key(hass) -> None:
             result["flow_id"], {CONF_MEAL_TYPES: ["2"]}
         )
 
-    assert result["type"] is config_entries.FlowResultType.CREATE_ENTRY
+    assert result["type"] is FlowResultType.CREATE_ENTRY
     assert result["data"][CONF_SCHOOL_CODE] == "7201202"
     assert result["options"][CONF_GRADE] == 6
     assert result["options"][CONF_CLASS_NAME] == "2"
