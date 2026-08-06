@@ -10,6 +10,7 @@ from custom_components.neis_school.const import (
     CONF_SCHOOL_KIND,
     CONF_SCHOOL_NAME,
 )
+from custom_components.neis_school.entity import _normalize_configuration_url
 from custom_components.neis_school.models import NeisResponse
 from custom_components.neis_school.sensor import (
     NeisScheduleTodaySensor,
@@ -44,6 +45,25 @@ def test_schedule_tts_without_events() -> None:
 def test_calendar_is_disabled_by_default() -> None:
     calendar = object.__new__(NeisSchoolCalendar)
     assert calendar.entity_registry_enabled_default is False
+
+
+def test_configuration_url_adds_a_missing_scheme() -> None:
+    assert (
+        _normalize_configuration_url("school.example.kr/home")
+        == "https://school.example.kr/home"
+    )
+
+
+def test_configuration_url_preserves_a_valid_scheme() -> None:
+    assert (
+        _normalize_configuration_url("http://school.example.kr")
+        == "http://school.example.kr"
+    )
+
+
+def test_configuration_url_omits_invalid_values() -> None:
+    assert _normalize_configuration_url(None) is None
+    assert _normalize_configuration_url("ftp://school.example.kr") is None
 
 
 async def test_calendar_reuses_an_identical_range_request() -> None:

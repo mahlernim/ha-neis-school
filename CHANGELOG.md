@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.1
+
+### Fixed
+
+- Normalize school homepage addresses used in device metadata so integration
+  setup remains reliable when upstream URL data omits a scheme.
+
 ## 0.1.0
 
 First stable release of NEIS School for Home Assistant.
