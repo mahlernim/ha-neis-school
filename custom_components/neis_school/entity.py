@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import voluptuous as vol
+from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
@@ -11,6 +13,20 @@ from .const import (
     DOMAIN,
 )
 from .coordinator import NeisSchoolCoordinator
+
+
+def _normalize_configuration_url(value: object) -> str | None:
+    """Return a valid device configuration URL for a school homepage."""
+    if not value or not (homepage := str(value).strip()):
+        return None
+
+    if "://" not in homepage:
+        homepage = f"https://{homepage}"
+
+    try:
+        return cv.url(homepage)
+    except vol.Invalid:
+        return None
 
 
 class NeisSchoolEntity(CoordinatorEntity[NeisSchoolCoordinator]):
@@ -27,5 +43,7 @@ class NeisSchoolEntity(CoordinatorEntity[NeisSchoolCoordinator]):
             name=entry.title,
             manufacturer="NEIS",
             model=str(entry.data[CONF_SCHOOL_KIND]),
-            configuration_url=entry.data.get(CONF_SCHOOL_HOMEPAGE),
+            configuration_url=_normalize_configuration_url(
+                entry.data.get(CONF_SCHOOL_HOMEPAGE)
+            ),
         )
