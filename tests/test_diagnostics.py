@@ -89,6 +89,7 @@ async def test_config_entry_diagnostics_never_exposes_credentials_or_school() ->
             last_attempt=timestamp,
             last_error=None,
             consecutive_failures=0,
+            using_cached_data=False,
         ),
     )
 
@@ -102,3 +103,4 @@ async def test_config_entry_diagnostics_never_exposes_credentials_or_school() ->
     assert result["entry"]["api_key_configured"] is True
     assert result["runtime"]["last_error"] is None
     assert result["runtime"]["consecutive_failures"] == 0
+    assert result["runtime"]["using_cached_data"] is False

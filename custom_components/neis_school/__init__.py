@@ -11,7 +11,7 @@ from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.event import async_track_time_change
 
 from .api import NeisAPI
-from .const import CONF_API_KEY, CONF_SCHOOL_CODE, DOMAIN
+from .const import CONF_API_KEY, CONF_SCHOOL_CODE, DOMAIN, REFRESH_TIMES
 from .coordinator import NeisSchoolCoordinator
 
 PLATFORMS = [Platform.SENSOR, Platform.BINARY_SENSOR, Platform.CALENDAR]
@@ -23,16 +23,26 @@ async def async_setup_entry(hass: HomeAssistant, entry: NeisSchoolConfigEntry) -
     api_key = entry.data.get(CONF_API_KEY, entry.options.get(CONF_API_KEY))
     api = NeisAPI(async_get_clientsession(hass), str(api_key) if api_key else None)
     coordinator = NeisSchoolCoordinator(hass, entry, api)
-    await coordinator.async_config_entry_first_refresh()
+    await coordinator.async_initialize()
     entry.runtime_data = coordinator
 
     @callback
     def _midnight_refresh(_now) -> None:
+        hass.async_create_task(coordinator.async_project_date(_now.date()))
+
+    @callback
+    def _scheduled_refresh(_now) -> None:
         hass.async_create_task(coordinator.async_request_refresh())
 
     entry.async_on_unload(
         async_track_time_change(hass, _midnight_refresh, hour=0, minute=0, second=5)
     )
+    for hour, minute in REFRESH_TIMES:
+        entry.async_on_unload(
+            async_track_time_change(
+                hass, _scheduled_refresh, hour=hour, minute=minute, second=0
+            )
+        )
     entry.async_on_unload(entry.add_update_listener(_async_update_listener))
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     return True
@@ -42,6 +52,7 @@ async def async_unload_entry(hass: HomeAssistant, entry: NeisSchoolConfigEntry) 
     """Unload a config entry."""
     unloaded = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
     if unloaded:
+        entry.runtime_data.async_shutdown()
         entry.runtime_data.clear_incomplete_issue()
     return unloaded
 

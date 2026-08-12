@@ -64,7 +64,7 @@ async def test_version_one_migration_preserves_registries(hass) -> None:
 
 
 async def test_unload_clears_the_entry_scoped_repair(hass) -> None:
-    runtime_data = SimpleNamespace(clear_incomplete_issue=Mock())
+    runtime_data = SimpleNamespace(async_shutdown=Mock(), clear_incomplete_issue=Mock())
     entry = SimpleNamespace(runtime_data=runtime_data)
     with patch.object(
         hass.config_entries,
@@ -73,4 +73,5 @@ async def test_unload_clears_the_entry_scoped_repair(hass) -> None:
     ):
         assert await async_unload_entry(hass, entry)
 
+    runtime_data.async_shutdown.assert_called_once_with()
     runtime_data.clear_incomplete_issue.assert_called_once_with()

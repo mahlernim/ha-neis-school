@@ -22,7 +22,13 @@ MEAL_DINNER: Final = "3"
 MEAL_TYPES: Final = (MEAL_BREAKFAST, MEAL_LUNCH, MEAL_DINNER)
 DEFAULT_MEAL_TYPES: Final = [MEAL_LUNCH]
 
-UPDATE_INTERVAL: Final = timedelta(hours=3)
+REFRESH_TIMES: Final = ((5, 5), (17, 5))
+SNAPSHOT_DAYS: Final = 7
+RETRY_DELAYS: Final = (
+    timedelta(minutes=5),
+    timedelta(minutes=15),
+    timedelta(hours=1),
+)
 SCHEDULE_LOOKAHEAD_DAYS: Final = 90
 REQUEST_TIMEOUT_SECONDS: Final = 10
 PAGE_SIZE: Final = 1000
