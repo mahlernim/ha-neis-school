@@ -128,6 +128,39 @@ async def test_info_200_is_complete_empty(aiohttp_client, monkeypatch) -> None:
     assert response.result_code == "INFO-200"
 
 
+@pytest.mark.asyncio
+async def test_range_requests_use_neis_date_parameters(
+    aiohttp_client, monkeypatch
+) -> None:
+    """Rolling snapshots must use one inclusive request per dataset."""
+    app = web.Application()
+    observed: dict[str, dict[str, str]] = {}
+
+    async def meal_handler(request):
+        observed["meal"] = dict(request.query)
+        return web.json_response({"RESULT": {"CODE": "INFO-200", "MESSAGE": "none"}})
+
+    async def timetable_handler(request):
+        observed["timetable"] = dict(request.query)
+        return web.json_response({"RESULT": {"CODE": "INFO-200", "MESSAGE": "none"}})
+
+    app.router.add_get("/mealServiceDietInfo", meal_handler)
+    app.router.add_get("/elsTimetable", timetable_handler)
+    client = await aiohttp_client(app)
+    monkeypatch.setattr(api_module, "BASE_URL", str(client.make_url("/")).rstrip("/"))
+    api = NeisAPI(client.session, "test-key")
+    start = api_module.date(2026, 8, 13)
+    end = api_module.date(2026, 8, 19)
+
+    await api.get_meals_range("C10", "7201202", start, end)
+    await api.get_timetable_range("C10", "7201202", "초등학교", start, end, 6, "2")
+
+    assert observed["meal"]["MLSV_FROM_YMD"] == "20260813"
+    assert observed["meal"]["MLSV_TO_YMD"] == "20260819"
+    assert observed["timetable"]["TI_FROM_YMD"] == "20260813"
+    assert observed["timetable"]["TI_TO_YMD"] == "20260819"
+
+
 @pytest.mark.parametrize("code", ["ERROR-290", "INFO-300"])
 @pytest.mark.asyncio
 async def test_authentication_errors_are_typed(

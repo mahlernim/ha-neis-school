@@ -81,6 +81,7 @@ async def async_get_config_entry_diagnostics(
             ),
             "last_error": coordinator.last_error,
             "consecutive_failures": coordinator.consecutive_failures,
+            "using_cached_data": coordinator.using_cached_data,
             "incomplete_sources": sorted(data.incomplete_sources),
             "meals": {
                 day.isoformat(): _response_diagnostics(response)

@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.1.2
+
+### Changed
+
+- Reduce routine NEIS traffic to three rolling requests twice per day instead
+  of repeatedly requesting each today/tomorrow dataset.
+- Persist date-indexed meals, timetables, and schedules so midnight rollover
+  does not depend on an immediate network request.
+- Retry temporary failures after increasing delays and retain complete cached
+  datasets when only one NEIS endpoint fails.
+
+### Fixed
+
+- Keep valid no-data responses distinct from connection failures and expose
+  cache use in downloadable diagnostics.
+
 ## 0.1.1
 
 ### Fixed

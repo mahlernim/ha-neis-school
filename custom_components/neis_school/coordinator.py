@@ -4,12 +4,16 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from datetime import timedelta
+from collections.abc import Callable
+from dataclasses import replace
+from datetime import date, timedelta
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryAuthFailed
 from homeassistant.helpers import issue_registry as ir
+from homeassistant.helpers.event import async_call_later
+from homeassistant.helpers.storage import Store
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 from homeassistant.util import dt as dt_util
 
@@ -23,12 +27,14 @@ from .const import (
     CONF_SCHOOL_KIND,
     DOMAIN,
     ISSUE_INCOMPLETE_DATA,
+    RETRY_DELAYS,
     SCHEDULE_LOOKAHEAD_DAYS,
-    UPDATE_INTERVAL,
+    SNAPSHOT_DAYS,
 )
 from .models import NeisCoordinatorData, NeisResponse
 
 _LOGGER = logging.getLogger(__name__)
+_STORE_VERSION = 1
 
 
 class NeisSchoolCoordinator(DataUpdateCoordinator[NeisCoordinatorData]):
@@ -51,53 +57,208 @@ class NeisSchoolCoordinator(DataUpdateCoordinator[NeisCoordinatorData]):
         self.last_attempt = None
         self.last_error: str | None = None
         self.consecutive_failures = 0
+        self.using_cached_data = False
+        self._cancel_retry: Callable[[], None] | None = None
+        self.store: Store[dict] = Store(
+            hass, _STORE_VERSION, f"{DOMAIN}.{entry.entry_id}.snapshot"
+        )
         super().__init__(
             hass,
             _LOGGER,
             config_entry=entry,
             name=DOMAIN,
-            update_interval=UPDATE_INTERVAL,
+            update_interval=None,
         )
+
+    async def async_initialize(self) -> None:
+        """Restore a usable snapshot, then refresh without blocking startup."""
+        stored = await self.store.async_load()
+        if stored:
+            try:
+                cached = NeisCoordinatorData.from_dict(stored["snapshot"])
+            except (KeyError, TypeError, ValueError) as err:
+                _LOGGER.warning("Ignoring invalid NEIS snapshot: %s", err)
+            else:
+                today = dt_util.now().date()
+                if self._covers_required_dates(cached, today):
+                    self.using_cached_data = True
+                    self.async_set_updated_data(replace(cached, local_date=today))
+                    self.hass.async_create_task(self.async_request_refresh())
+                    return
+        await self.async_config_entry_first_refresh()
+
+    async def async_project_date(self, target: date) -> None:
+        """Project cached date-indexed data without requiring a network call."""
+        if self.data is not None and self._covers_required_dates(self.data, target):
+            self.async_set_updated_data(replace(self.data, local_date=target))
+        else:
+            await self.async_request_refresh()
+
+    def async_shutdown(self) -> None:
+        """Cancel any pending recovery refresh."""
+        if self._cancel_retry is not None:
+            self._cancel_retry()
+            self._cancel_retry = None
 
     async def _async_update_data(self) -> NeisCoordinatorData:
         """Fetch meals, schedules, and timetables."""
         today = dt_util.now().date()
+        if not self.api.has_api_key:
+            return await self._async_update_limited(today)
+        snapshot_end = today + timedelta(days=SNAPSHOT_DAYS - 1)
+        schedule_end = today + timedelta(days=SCHEDULE_LOOKAHEAD_DAYS)
+        self.last_attempt = dt_util.utcnow()
+        results = await asyncio.gather(
+            self.api.get_meals_range(
+                self.office_code, self.school_code, today, snapshot_end
+            ),
+            self.api.get_schedule(
+                self.office_code, self.school_code, today, schedule_end
+            ),
+            self.api.get_timetable_range(
+                self.office_code,
+                self.school_code,
+                self.school_kind,
+                today,
+                snapshot_end,
+                self.grade,
+                self.class_name,
+            ),
+            return_exceptions=True,
+        )
+        for result in results:
+            if isinstance(result, NeisAuthenticationError):
+                self._record_failure(result)
+                raise ConfigEntryAuthFailed(
+                    "NEIS API key is invalid or restricted"
+                ) from result
+            if isinstance(result, BaseException) and not isinstance(result, NeisError):
+                raise result
+
+        failures = [result for result in results if isinstance(result, NeisError)]
+        if failures:
+            self._record_failure(failures[0])
+            self._schedule_retry()
+
+        previous = self.data
+        meals_result, schedule_result, timetable_result = results
+        meals = self._source_or_cached(
+            "meals",
+            meals_result,
+            previous.meals if previous else None,
+            today,
+            snapshot_end,
+            "MLSV_YMD",
+        )
+        schedules = self._source_or_cached(
+            "schedules",
+            schedule_result,
+            previous.schedules if previous else None,
+            today,
+            schedule_end,
+            "AA_YMD",
+        )
+        timetables = self._source_or_cached(
+            "timetables",
+            timetable_result,
+            previous.timetables if previous else None,
+            today,
+            snapshot_end,
+            "ALL_TI_YMD",
+        )
+        if meals is None or schedules is None or timetables is None:
+            raise UpdateFailed("Unable to update NEIS school data") from failures[0]
+
+        if isinstance(schedule_result, NeisResponse):
+            upcoming_schedule = schedule_result
+        elif previous is not None and previous.upcoming_schedule.complete:
+            upcoming_schedule = previous.upcoming_schedule
+        else:
+            raise UpdateFailed("Unable to update NEIS school data") from failures[0]
+
+        sources = set()
+        for name, response in (
+            ("meals", meals_result),
+            ("schedules", schedule_result),
+            ("timetables", timetable_result),
+        ):
+            if isinstance(response, NeisError) or (
+                isinstance(response, NeisResponse)
+                and not response.complete
+                and response.result_code != "LIMITED_MODE"
+            ):
+                sources.add(name)
+        self._update_incomplete_issue(sources)
+        completed_at = dt_util.utcnow()
+        if not failures:
+            self.last_attempt = completed_at
+            self.last_error = None
+            self.consecutive_failures = 0
+            self.using_cached_data = False
+            self.async_shutdown()
+        else:
+            self.using_cached_data = True
+        data = NeisCoordinatorData(
+            local_date=today,
+            meals=meals,
+            schedules=schedules,
+            timetables=timetables,
+            upcoming_schedule=upcoming_schedule,
+            last_success=(completed_at if not failures else previous.last_success),
+            last_attempt=completed_at,
+            incomplete_sources=sources,
+        )
+        await self.store.async_save({"snapshot": data.as_dict()})
+        return data
+
+    async def _async_update_limited(self, today: date) -> NeisCoordinatorData:
+        """Preserve exact today/tomorrow queries for anonymous limited mode."""
         tomorrow = today + timedelta(days=1)
         self.last_attempt = dt_util.utcnow()
-        try:
-            results = await asyncio.gather(
-                self.api.get_meals(self.office_code, self.school_code, today),
-                self.api.get_meals(self.office_code, self.school_code, tomorrow),
-                self.api.get_schedule(self.office_code, self.school_code, today, today),
-                self.api.get_schedule(
-                    self.office_code, self.school_code, tomorrow, tomorrow
-                ),
-                self.api.get_timetable(
-                    self.office_code,
-                    self.school_code,
-                    self.school_kind,
-                    today,
-                    self.grade,
-                    self.class_name,
-                ),
-                self.api.get_timetable(
-                    self.office_code,
-                    self.school_code,
-                    self.school_kind,
-                    tomorrow,
-                    self.grade,
-                    self.class_name,
-                ),
-                self._async_upcoming_schedule(today),
+        results = await asyncio.gather(
+            self.api.get_meals(self.office_code, self.school_code, today),
+            self.api.get_meals(self.office_code, self.school_code, tomorrow),
+            self.api.get_schedule(self.office_code, self.school_code, today, today),
+            self.api.get_schedule(
+                self.office_code, self.school_code, tomorrow, tomorrow
+            ),
+            self.api.get_timetable(
+                self.office_code,
+                self.school_code,
+                self.school_kind,
+                today,
+                self.grade,
+                self.class_name,
+            ),
+            self.api.get_timetable(
+                self.office_code,
+                self.school_code,
+                self.school_kind,
+                tomorrow,
+                self.grade,
+                self.class_name,
+            ),
+            return_exceptions=True,
+        )
+        for result in results:
+            if isinstance(result, BaseException) and not isinstance(result, NeisError):
+                raise result
+        failures = [result for result in results if isinstance(result, NeisError)]
+        previous = self.data
+        if failures:
+            self._record_failure(failures[0])
+            self._schedule_retry()
+            if previous is None or not self._covers_required_dates(previous, today):
+                raise UpdateFailed("Unable to update NEIS school data") from failures[0]
+            self.using_cached_data = True
+            data = replace(
+                previous,
+                local_date=today,
+                last_attempt=dt_util.utcnow(),
+                incomplete_sources={"limited_mode_refresh"},
             )
-        except NeisAuthenticationError as err:
-            self._record_failure(err)
-            raise ConfigEntryAuthFailed(
-                "NEIS API key is invalid or restricted"
-            ) from err
-        except NeisError as err:
-            self._record_failure(err)
-            raise UpdateFailed("Unable to update NEIS school data") from err
+            await self.store.async_save({"snapshot": data.as_dict()})
+            return data
 
         (
             meals_today,
@@ -106,47 +267,99 @@ class NeisSchoolCoordinator(DataUpdateCoordinator[NeisCoordinatorData]):
             schedule_tomorrow,
             timetable_today,
             timetable_tomorrow,
-            upcoming_schedule,
         ) = results
+        responses = {
+            "meals_today": meals_today,
+            "meals_tomorrow": meals_tomorrow,
+            "schedule_today": schedule_today,
+            "schedule_tomorrow": schedule_tomorrow,
+            "timetable_today": timetable_today,
+            "timetable_tomorrow": timetable_tomorrow,
+        }
         sources = {
             name
-            for name, response in (
-                ("meals_today", meals_today),
-                ("meals_tomorrow", meals_tomorrow),
-                ("schedule_today", schedule_today),
-                ("schedule_tomorrow", schedule_tomorrow),
-                ("timetable_today", timetable_today),
-                ("timetable_tomorrow", timetable_tomorrow),
-                ("upcoming_schedule", upcoming_schedule),
-            )
-            if not response.complete and response.result_code != "LIMITED_MODE"
+            for name, response in responses.items()
+            if isinstance(response, NeisResponse) and not response.complete
         }
         self._update_incomplete_issue(sources)
         completed_at = dt_util.utcnow()
         self.last_attempt = completed_at
         self.last_error = None
         self.consecutive_failures = 0
-        return NeisCoordinatorData(
+        self.using_cached_data = False
+        self.async_shutdown()
+        data = NeisCoordinatorData(
             local_date=today,
             meals={today: meals_today, tomorrow: meals_tomorrow},
             schedules={today: schedule_today, tomorrow: schedule_tomorrow},
             timetables={today: timetable_today, tomorrow: timetable_tomorrow},
-            upcoming_schedule=upcoming_schedule,
+            upcoming_schedule=NeisResponse.limited(),
             last_success=completed_at,
             last_attempt=completed_at,
             incomplete_sources=sources,
         )
+        await self.store.async_save({"snapshot": data.as_dict()})
+        return data
 
-    async def _async_upcoming_schedule(self, today) -> NeisResponse:
-        """Fetch complete lookahead data only in authenticated mode."""
-        if not self.api.has_api_key:
-            return NeisResponse.limited()
-        return await self.api.get_schedule(
-            self.office_code,
-            self.school_code,
-            today,
-            today + timedelta(days=SCHEDULE_LOOKAHEAD_DAYS),
+    def _source_or_cached(
+        self,
+        name: str,
+        result: NeisResponse | BaseException,
+        cached: dict[date, NeisResponse] | None,
+        start: date,
+        end: date,
+        date_field: str,
+    ) -> dict[date, NeisResponse] | None:
+        """Split a range response or retain a complete cached date range."""
+        if isinstance(result, NeisResponse):
+            return self._split_by_date(result, start, end, date_field)
+        required = (start, start + timedelta(days=1))
+        if cached is not None and all(day in cached for day in required):
+            _LOGGER.warning("NEIS %s refresh failed; retaining cached data", name)
+            return {day: response for day, response in cached.items() if day >= start}
+        return None
+
+    @staticmethod
+    def _split_by_date(
+        response: NeisResponse, start: date, end: date, date_field: str
+    ) -> dict[date, NeisResponse]:
+        """Split a complete range response into complete per-date responses."""
+        values: dict[date, NeisResponse] = {}
+        for day in NeisSchoolCoordinator._date_range(start, end):
+            key = day.strftime("%Y%m%d")
+            rows = tuple(
+                row for row in response.rows if str(row.get(date_field, "")) == key
+            )
+            values[day] = NeisResponse(
+                rows, len(rows), response.complete, response.result_code
+            )
+        return values
+
+    @staticmethod
+    def _date_range(start: date, end: date) -> tuple[date, ...]:
+        return tuple(
+            start + timedelta(days=offset) for offset in range((end - start).days + 1)
         )
+
+    @staticmethod
+    def _covers_required_dates(data: NeisCoordinatorData, target: date) -> bool:
+        tomorrow = target + timedelta(days=1)
+        return all(
+            day in values
+            for values in (data.meals, data.schedules, data.timetables)
+            for day in (target, tomorrow)
+        )
+
+    def _schedule_retry(self) -> None:
+        if self._cancel_retry is not None:
+            self._cancel_retry()
+        delay = RETRY_DELAYS[min(self.consecutive_failures - 1, len(RETRY_DELAYS) - 1)]
+
+        def _retry(_now) -> None:
+            self._cancel_retry = None
+            self.hass.async_create_task(self.async_request_refresh())
+
+        self._cancel_retry = async_call_later(self.hass, delay, _retry)
 
     def _record_failure(self, err: NeisError) -> None:
         """Record a sanitized failed refresh for diagnostics."""

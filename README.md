@@ -91,6 +91,12 @@
 
 안정적인 시간표, 학사일정과 캘린더 사용을 위해 무료 인증키를 권장합니다.
 
+통합 구성요소는 7일간의 급식·시간표와 90일간의 학사일정을 날짜별로 저장하고
+매일 오전과 오후에 갱신합니다. 날짜가 바뀔 때는 저장된 다음 날 자료를 즉시
+표시하므로 자정의 일시적인 NEIS 장애 때문에 모든 엔티티가 사라지지 않습니다.
+연결이 실패하면 짧은 간격으로 다시 시도하며, 일부 자료만 실패한 경우에는 정상
+조회된 다른 자료와 완전한 기존 자료를 유지합니다.
+
 - [NEIS 인증키 신청](https://open.neis.go.kr/portal/guide/actKeyPage.do)
 - [NEIS 개발자 가이드](https://open.neis.go.kr/portal/guide/apiGuidePage.do)
 
@@ -160,6 +166,10 @@ TTS 엔진과 스피커 엔티티 ID만 바꾸어 사용할 수 있습니다.
 NEIS School is an unofficial Home Assistant integration for Korea's public
 education data. It provides school search, meals, schooldays, academic events,
 class timetables, TTS-ready text, and an optional read-only calendar.
+
+Version 0.1.2 stores date-indexed rolling snapshots, refreshes them twice per
+day, projects the next cached date at midnight, and retries temporary failures
+without discarding complete data from unaffected NEIS endpoints.
 
 Install it with HACS, restart Home Assistant, and add **NEIS School** from
 **Settings → Devices & services**. A free NEIS API key is recommended because

@@ -241,6 +241,24 @@ class NeisAPI:
             },
         )
 
+    async def get_meals_range(
+        self,
+        office_code: str,
+        school_code: str,
+        start_date: date,
+        end_date: date,
+    ) -> NeisResponse:
+        """Return meals in an inclusive date range."""
+        return await self._request(
+            "mealServiceDietInfo",
+            {
+                "ATPT_OFCDC_SC_CODE": office_code,
+                "SD_SCHUL_CODE": school_code,
+                "MLSV_FROM_YMD": start_date.strftime("%Y%m%d"),
+                "MLSV_TO_YMD": end_date.strftime("%Y%m%d"),
+            },
+        )
+
     async def get_schedule(
         self,
         office_code: str,
@@ -279,6 +297,32 @@ class NeisAPI:
                 "ATPT_OFCDC_SC_CODE": office_code,
                 "SD_SCHUL_CODE": school_code,
                 "ALL_TI_YMD": timetable_date.strftime("%Y%m%d"),
+                "GRADE": grade,
+                "CLASS_NM": class_name,
+            },
+        )
+
+    async def get_timetable_range(
+        self,
+        office_code: str,
+        school_code: str,
+        school_kind: str,
+        start_date: date,
+        end_date: date,
+        grade: int,
+        class_name: str,
+    ) -> NeisResponse:
+        """Return a class timetable in an inclusive date range."""
+        endpoint = SCHOOL_KIND_ENDPOINTS.get(school_kind)
+        if endpoint is None:
+            raise NeisApiError("UNSUPPORTED_SCHOOL", school_kind)
+        return await self._request(
+            endpoint,
+            {
+                "ATPT_OFCDC_SC_CODE": office_code,
+                "SD_SCHUL_CODE": school_code,
+                "TI_FROM_YMD": start_date.strftime("%Y%m%d"),
+                "TI_TO_YMD": end_date.strftime("%Y%m%d"),
                 "GRADE": grade,
                 "CLASS_NM": class_name,
             },
