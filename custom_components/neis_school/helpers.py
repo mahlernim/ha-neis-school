@@ -21,6 +21,10 @@ _NON_SCHOOL_KEYWORDS = (
     "재량휴업",
     "대체공휴일",
 )
+_SCHOOLDAY_OVERRIDE_KEYWORDS = (
+    "개학",
+    "개학식",
+)
 
 
 def parse_neis_date(value: str) -> date:
@@ -58,8 +62,14 @@ def evaluate_schoolday(
     for row in rows:
         event_name = str(row.get("EVENT_NM", ""))
         deduction = str(row.get("SBTR_DD_SC_NM", ""))
-        if deduction == "휴업일" or any(
+        has_non_school_keyword = any(
             keyword in event_name for keyword in _NON_SCHOOL_KEYWORDS
+        )
+        has_schoolday_override = any(
+            keyword in event_name for keyword in _SCHOOLDAY_OVERRIDE_KEYWORDS
+        )
+        if deduction == "휴업일" or (
+            has_non_school_keyword and not has_schoolday_override
         ):
             return SchooldayResult(
                 True,
