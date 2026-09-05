@@ -52,7 +52,7 @@ async def async_unload_entry(hass: HomeAssistant, entry: NeisSchoolConfigEntry) 
     """Unload a config entry."""
     unloaded = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
     if unloaded:
-        entry.runtime_data.async_shutdown()
+        await entry.runtime_data.async_shutdown()
         entry.runtime_data.clear_incomplete_issue()
     return unloaded
 

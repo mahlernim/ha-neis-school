@@ -5,41 +5,83 @@
       "user": {
         "title": "NEIS 연결",
         "description": "인증키 없이 제한 모드를 사용할 수도 있지만 시간표나 학사일정이 불완전할 수 있습니다. 안정적인 사용을 위해 [무료 인증키 발급]({api_key_url})을 권장합니다.",
-        "data": {"api_key": "NEIS 인증키", "limited_ack": "인증키가 없으면 데이터가 불완전할 수 있음을 확인했습니다"}
+        "data": {
+          "api_key": "NEIS 인증키",
+          "limited_ack": "인증키가 없으면 데이터가 불완전할 수 있음을 확인했습니다"
+        }
       },
       "school": {
         "title": "학교 찾기",
         "description": "시도교육청을 선택하고 학교 이름의 일부 또는 전체를 입력하세요.",
-        "data": {"office_code": "시도교육청", "school_name": "학교 이름"}
+        "data": {
+          "office_code": "시도교육청",
+          "school_name": "학교 이름"
+        }
       },
-      "select_school": {"title": "학교 선택", "data": {"school_code": "학교"}},
-      "grade": {"title": "학년 선택", "data": {"grade": "학년"}},
+      "select_school": {
+        "title": "학교 선택",
+        "data": {
+          "school_code": "학교"
+        }
+      },
+      "grade": {
+        "title": "학년 선택",
+        "data": {
+          "grade": "학년"
+        },
+        "description": "**{school_name}** · {school_address}\n\n{academic_year}학년도에 재학 중인 학년을 선택하세요. 1~2월에는 이전 연도 학년을 사용합니다."
+      },
       "class": {
         "title": "반 선택",
-        "description": "인증키가 있으면 반 목록을 자동으로 표시합니다. 제한 모드에서는 입력한 반을 정확한 조건으로 확인합니다.",
-        "data": {"class_name": "반"}
+        "description": "**{school_name}** · {school_address}\n\n{academic_year}학년도 반을 선택하세요. 학년을 바꾸고 제출하면 해당 학년의 반 목록을 다시 불러옵니다. 목록을 불러오지 못했으면 같은 학년으로 다시 제출해 조회할 수 있습니다. 제한 모드에서는 반 이름을 직접 입력하세요.",
+        "data": {
+          "grade": "학년",
+          "class_name": "반"
+        }
       },
-      "meals": {"title": "급식 유형 선택", "data": {"meal_types": "급식 유형"}},
+      "meals": {
+        "title": "급식 유형 선택",
+        "data": {
+          "meal_types": "급식 유형"
+        },
+        "description": "**{school_name}** · {school_address}\n\n{academic_year}학년도 · {grade}학년 {class_name}반\n\n인증키를 사용하는 전체 모드입니다. 사용할 급식 유형을 선택하세요. 학사일정 캘린더는 기본 비활성이며 설정 후 엔티티 목록에서 켤 수 있습니다."
+      },
       "reauth_confirm": {
         "title": "NEIS 인증키 다시 설정",
         "description": "기존 인증키가 거부되었습니다. 새 [무료 인증키]({api_key_url})를 입력하거나 제한 모드 사용을 확인하세요.",
-        "data": {"api_key": "새 NEIS 인증키", "limited_ack": "인증키 없이 제한 모드를 사용합니다"}
+        "data": {
+          "api_key": "새 NEIS 인증키",
+          "limited_ack": "인증키 없이 제한 모드를 사용합니다"
+        }
       },
       "reconfigure": {
         "title": "NEIS 연결 재구성",
         "description": "새 [무료 인증키]({api_key_url})를 입력하거나 제한 모드로 전환할 수 있습니다.",
-        "data": {"api_key": "새 NEIS 인증키", "limited_ack": "인증키 없이 제한 모드를 사용합니다"}
+        "data": {
+          "api_key": "새 NEIS 인증키",
+          "limited_ack": "인증키 없이 제한 모드를 사용합니다"
+        }
+      },
+      "meals_limited": {
+        "title": "급식 유형 선택",
+        "data": {
+          "meal_types": "급식 유형"
+        },
+        "description": "**{school_name}** · {school_address}\n\n{academic_year}학년도 · {grade}학년 {class_name}반\n\n인증키가 없는 제한 모드입니다. 일부 데이터는 사용할 수 없으며 캘린더와 다음 일정 조회에는 인증키가 필요합니다. 사용할 급식 유형을 선택하세요."
       }
     },
     "error": {
       "api_error": "NEIS가 요청을 거부했습니다. 인증키와 입력값을 확인하세요.",
-      "cannot_connect": "NEIS에 연결할 수 없습니다.",
-      "class_not_found": "선택한 학년과 반을 찾을 수 없습니다.",
-      "incomplete_data": "NEIS가 불완전한 샘플 데이터만 반환했습니다. 인증키를 추가한 뒤 다시 시도하세요.",
+      "cannot_connect": "NEIS에 연결할 수 없습니다. 입력값을 유지한 채 잠시 후 다시 시도하세요.",
+      "class_not_found": "선택한 학년도, 학년과 반에 일치하는 자료가 없습니다. 학년과 반을 확인하세요. 새 학년도 자료는 아직 공개되지 않았을 수 있습니다.",
+      "incomplete_data": "전체 결과를 받지 못했습니다. 인증키가 없으면 무료 인증키를 입력하고, 이미 사용 중이면 잠시 후 다시 시도하세요.",
       "invalid_auth": "NEIS 인증키가 올바르지 않거나 사용이 제한되었습니다.",
       "limited_not_acknowledged": "제한 사항을 확인하거나 인증키를 입력하세요.",
       "rate_limited": "NEIS 일일 호출 한도를 초과했습니다. 다음 날 다시 시도하세요.",
-      "school_not_found": "지원되는 학교를 찾지 못했습니다. 학교 이름을 더 정확히 입력하세요."
+      "school_not_found": "지원되는 학교를 찾지 못했습니다. 학교 이름을 더 정확히 입력하세요.",
+      "required": "값을 입력하세요.",
+      "incomplete_school_search": "검색 결과의 일부만 반환되었습니다. 학교 이름을 더 구체적으로 입력해 다시 검색하세요.",
+      "classes_unavailable": "선택한 학년의 반 목록이 없습니다. 학교에서 해당 학년도 자료를 아직 공개하지 않았을 수 있습니다. 학년을 확인하거나 나중에 다시 조회하세요."
     },
     "abort": {
       "already_configured": "같은 학교, 학년과 반이 이미 설정되어 있습니다.",
@@ -52,42 +94,121 @@
     "step": {
       "init": {
         "title": "나이스 학교생활 옵션",
-        "description": "학년, 반 또는 사용할 급식 유형을 변경합니다. 인증키는 통합 구성요소의 재구성 메뉴에서 변경할 수 있습니다.",
-        "data": {"grade": "학년", "class_name": "반", "meal_types": "급식 유형"}
+        "description": "**{school_name}** · {academic_year}학년도\n\n학년, 반 또는 사용할 급식 유형을 변경합니다. 새 학년도 자료가 아직 공개되지 않았다면 나중에 다시 시도하세요. 인증키는 통합 구성요소의 재구성 메뉴에서 변경할 수 있습니다.",
+        "data": {
+          "grade": "학년",
+          "class_name": "반",
+          "meal_types": "급식 유형"
+        }
       }
     },
     "error": {
       "api_error": "NEIS가 요청을 거부했습니다. 인증키와 입력값을 확인하세요.",
       "already_configured": "같은 학교, 학년과 반이 이미 설정되어 있습니다.",
-      "cannot_connect": "NEIS에 연결할 수 없습니다.",
-      "class_not_found": "선택한 학년과 반을 찾을 수 없습니다.",
-      "incomplete_data": "NEIS가 불완전한 샘플 데이터만 반환했습니다. 인증키를 추가한 뒤 다시 시도하세요.",
+      "cannot_connect": "NEIS에 연결할 수 없습니다. 입력값을 유지한 채 잠시 후 다시 시도하세요.",
+      "class_not_found": "선택한 학년도, 학년과 반에 일치하는 자료가 없습니다. 학년과 반을 확인하세요. 새 학년도 자료는 아직 공개되지 않았을 수 있습니다.",
+      "incomplete_data": "전체 결과를 받지 못했습니다. 인증키가 없으면 무료 인증키를 입력하고, 이미 사용 중이면 잠시 후 다시 시도하세요.",
       "invalid_auth": "NEIS 인증키가 올바르지 않거나 사용이 제한되었습니다.",
-      "rate_limited": "NEIS 일일 호출 한도를 초과했습니다. 다음 날 다시 시도하세요."
+      "rate_limited": "NEIS 일일 호출 한도를 초과했습니다. 다음 날 다시 시도하세요.",
+      "required": "값을 입력하세요."
     }
   },
-  "selector": {"meal_types": {"options": {"1": "조식", "2": "중식", "3": "석식"}}},
+  "selector": {
+    "meal_types": {
+      "options": {
+        "1": "조식",
+        "2": "중식",
+        "3": "석식"
+      }
+    }
+  },
   "entity": {
     "sensor": {
-      "breakfast_today": {"name": "오늘 조식", "state": {"available": "급식 있음", "no_meal": "급식 없음"}},
-      "breakfast_tomorrow": {"name": "내일 조식", "state": {"available": "급식 있음", "no_meal": "급식 없음"}},
-      "lunch_today": {"name": "오늘 중식", "state": {"available": "급식 있음", "no_meal": "급식 없음"}},
-      "lunch_tomorrow": {"name": "내일 중식", "state": {"available": "급식 있음", "no_meal": "급식 없음"}},
-      "dinner_today": {"name": "오늘 석식", "state": {"available": "급식 있음", "no_meal": "급식 없음"}},
-      "dinner_tomorrow": {"name": "내일 석식", "state": {"available": "급식 있음", "no_meal": "급식 없음"}},
-      "schedule_today": {"name": "오늘 학사일정", "state": {"scheduled": "일정 있음", "none": "일정 없음"}},
-      "next_school_event": {"name": "다음 학교행사"},
-      "next_schoolday": {"name": "다음 등교일"},
-      "timetable_today": {"name": "오늘 시간표"},
-      "timetable_tomorrow": {"name": "내일 시간표"},
-      "api_mode": {"name": "API 모드", "state": {"full": "전체", "limited": "제한"}},
-      "last_successful_update": {"name": "마지막 정상 갱신"}
+      "breakfast_today": {
+        "name": "오늘 조식",
+        "state": {
+          "available": "급식 있음",
+          "no_meal": "급식 없음"
+        }
+      },
+      "breakfast_tomorrow": {
+        "name": "내일 조식",
+        "state": {
+          "available": "급식 있음",
+          "no_meal": "급식 없음"
+        }
+      },
+      "lunch_today": {
+        "name": "오늘 중식",
+        "state": {
+          "available": "급식 있음",
+          "no_meal": "급식 없음"
+        }
+      },
+      "lunch_tomorrow": {
+        "name": "내일 중식",
+        "state": {
+          "available": "급식 있음",
+          "no_meal": "급식 없음"
+        }
+      },
+      "dinner_today": {
+        "name": "오늘 석식",
+        "state": {
+          "available": "급식 있음",
+          "no_meal": "급식 없음"
+        }
+      },
+      "dinner_tomorrow": {
+        "name": "내일 석식",
+        "state": {
+          "available": "급식 있음",
+          "no_meal": "급식 없음"
+        }
+      },
+      "schedule_today": {
+        "name": "오늘 학사일정",
+        "state": {
+          "scheduled": "일정 있음",
+          "none": "일정 없음"
+        }
+      },
+      "next_school_event": {
+        "name": "다음 학교행사"
+      },
+      "next_schoolday": {
+        "name": "다음 등교일"
+      },
+      "timetable_today": {
+        "name": "오늘 시간표"
+      },
+      "timetable_tomorrow": {
+        "name": "내일 시간표"
+      },
+      "api_mode": {
+        "name": "API 모드",
+        "state": {
+          "full": "전체",
+          "limited": "제한"
+        }
+      },
+      "last_successful_update": {
+        "name": "마지막 정상 갱신"
+      }
     },
     "binary_sensor": {
-      "schoolday_today": {"name": "등교일"},
-      "schoolday_tomorrow": {"name": "내일 등교일"}
+      "schoolday_today": {
+        "name": "등교일"
+      },
+      "schoolday_tomorrow": {
+        "name": "내일 등교일"
+      }
     },
-    "calendar": {"school_calendar": {"name": "학사일정"}}
+    "calendar": {
+      "school_calendar": {
+        "name": "학사일정"
+      }
+    }
   },
   "issues": {
     "incomplete_data": {

@@ -20,41 +20,68 @@
       },
       "select_school": {
         "title": "Select a school",
-        "data": {"school_code": "School"}
+        "data": {
+          "school_code": "School"
+        }
       },
       "grade": {
         "title": "Select a grade",
-        "data": {"grade": "Grade"}
+        "data": {
+          "grade": "Grade"
+        },
+        "description": "**{school_name}** · {school_address}\n\nSelect the grade for the {academic_year} academic year. In January and February, use the grade from the previous calendar year."
       },
       "class": {
         "title": "Select a class",
-        "description": "With an API key, available classes are listed automatically. Limited mode validates the class you enter.",
-        "data": {"class_name": "Class"}
+        "description": "**{school_name}** · {school_address}\n\nSelect a class for the {academic_year} academic year. Change the grade and submit to load its classes. If the list could not be loaded, submit the same grade to retry. In limited mode, enter the class name manually.",
+        "data": {
+          "grade": "Grade",
+          "class_name": "Class"
+        }
       },
       "meals": {
         "title": "Select meals",
-        "data": {"meal_types": "Meal types"}
+        "data": {
+          "meal_types": "Meal types"
+        },
+        "description": "**{school_name}** · {school_address}\n\nAcademic year {academic_year} · Grade {grade}, class {class_name}\n\nFull mode with an API key. Select the meal types to use. The academic calendar starts disabled; you can enable it in the entity list after setup."
       },
       "reauth_confirm": {
         "title": "Reconnect to NEIS",
         "description": "The existing key was rejected. Enter a new [free API key]({api_key_url}) or confirm limited mode.",
-        "data": {"api_key": "New NEIS API key", "limited_ack": "Use limited mode without an API key"}
+        "data": {
+          "api_key": "New NEIS API key",
+          "limited_ack": "Use limited mode without an API key"
+        }
       },
       "reconfigure": {
         "title": "Reconfigure NEIS",
         "description": "Enter a new [free API key]({api_key_url}) or switch to limited mode.",
-        "data": {"api_key": "New NEIS API key", "limited_ack": "Use limited mode without an API key"}
+        "data": {
+          "api_key": "New NEIS API key",
+          "limited_ack": "Use limited mode without an API key"
+        }
+      },
+      "meals_limited": {
+        "title": "Select meals",
+        "data": {
+          "meal_types": "Meal types"
+        },
+        "description": "**{school_name}** · {school_address}\n\nAcademic year {academic_year} · Grade {grade}, class {class_name}\n\nLimited mode without an API key. Some data may be unavailable; the calendar and upcoming schedule features require a key. Select the meal types to use."
       }
     },
     "error": {
       "api_error": "NEIS rejected the request. Check the API key and input.",
-      "cannot_connect": "Could not connect to NEIS.",
-      "class_not_found": "The selected grade and class were not found.",
-      "incomplete_data": "NEIS returned incomplete sample data. Add an API key and try again.",
+      "cannot_connect": "Could not connect to NEIS. Your input is retained; try again shortly.",
+      "class_not_found": "No record matches this academic year, grade, and class. Check the grade and class. Data for the new academic year may not be published yet.",
+      "incomplete_data": "The full result could not be retrieved. Enter a free API key if you do not have one configured, or try again later if you already use a key.",
       "invalid_auth": "The NEIS API key is invalid or restricted.",
       "limited_not_acknowledged": "Acknowledge the limitation or enter an API key.",
       "rate_limited": "The NEIS daily request limit has been reached. Try again tomorrow.",
-      "school_not_found": "No supported school was found. Refine the school name."
+      "school_not_found": "No supported school was found. Refine the school name.",
+      "required": "Enter a value.",
+      "incomplete_school_search": "Only part of the search results was returned. Enter a more specific school name and search again.",
+      "classes_unavailable": "No classes were returned for this grade. The school may not have published this academic year yet. Check the grade or try again later."
     },
     "abort": {
       "already_configured": "The same school, grade, and class is already configured.",
@@ -67,7 +94,7 @@
     "step": {
       "init": {
         "title": "NEIS School options",
-        "description": "Update the grade, class, or enabled meal types. Use Reconfigure on the integration to change the API key.",
+        "description": "**{school_name}** · Academic year {academic_year}\n\nUpdate the grade, class, or enabled meal types. If data for the new academic year is not published yet, try again later. Use Reconfigure on the integration to change the API key.",
         "data": {
           "grade": "Grade",
           "class_name": "Class",
@@ -78,11 +105,12 @@
     "error": {
       "api_error": "NEIS rejected the request. Check the API key and input.",
       "already_configured": "The same school, grade, and class is already configured.",
-      "cannot_connect": "Could not connect to NEIS.",
-      "class_not_found": "The selected grade and class were not found.",
-      "incomplete_data": "NEIS returned incomplete sample data. Add an API key and try again.",
+      "cannot_connect": "Could not connect to NEIS. Your input is retained; try again shortly.",
+      "class_not_found": "No record matches this academic year, grade, and class. Check the grade and class. Data for the new academic year may not be published yet.",
+      "incomplete_data": "The full result could not be retrieved. Enter a free API key if you do not have one configured, or try again later if you already use a key.",
       "invalid_auth": "The NEIS API key is invalid or restricted.",
-      "rate_limited": "The NEIS daily request limit has been reached. Try again tomorrow."
+      "rate_limited": "The NEIS daily request limit has been reached. Try again tomorrow.",
+      "required": "Enter a value."
     }
   },
   "selector": {
@@ -96,25 +124,91 @@
   },
   "entity": {
     "sensor": {
-      "breakfast_today": {"name": "Breakfast today", "state": {"available": "Available", "no_meal": "No meal"}},
-      "breakfast_tomorrow": {"name": "Breakfast tomorrow", "state": {"available": "Available", "no_meal": "No meal"}},
-      "lunch_today": {"name": "Lunch today", "state": {"available": "Available", "no_meal": "No meal"}},
-      "lunch_tomorrow": {"name": "Lunch tomorrow", "state": {"available": "Available", "no_meal": "No meal"}},
-      "dinner_today": {"name": "Dinner today", "state": {"available": "Available", "no_meal": "No meal"}},
-      "dinner_tomorrow": {"name": "Dinner tomorrow", "state": {"available": "Available", "no_meal": "No meal"}},
-      "schedule_today": {"name": "Schedule today", "state": {"scheduled": "Scheduled", "none": "None"}},
-      "next_school_event": {"name": "Next school event"},
-      "next_schoolday": {"name": "Next schoolday"},
-      "timetable_today": {"name": "Timetable today"},
-      "timetable_tomorrow": {"name": "Timetable tomorrow"},
-      "api_mode": {"name": "API mode", "state": {"full": "Full", "limited": "Limited"}},
-      "last_successful_update": {"name": "Last successful update"}
+      "breakfast_today": {
+        "name": "Breakfast today",
+        "state": {
+          "available": "Available",
+          "no_meal": "No meal"
+        }
+      },
+      "breakfast_tomorrow": {
+        "name": "Breakfast tomorrow",
+        "state": {
+          "available": "Available",
+          "no_meal": "No meal"
+        }
+      },
+      "lunch_today": {
+        "name": "Lunch today",
+        "state": {
+          "available": "Available",
+          "no_meal": "No meal"
+        }
+      },
+      "lunch_tomorrow": {
+        "name": "Lunch tomorrow",
+        "state": {
+          "available": "Available",
+          "no_meal": "No meal"
+        }
+      },
+      "dinner_today": {
+        "name": "Dinner today",
+        "state": {
+          "available": "Available",
+          "no_meal": "No meal"
+        }
+      },
+      "dinner_tomorrow": {
+        "name": "Dinner tomorrow",
+        "state": {
+          "available": "Available",
+          "no_meal": "No meal"
+        }
+      },
+      "schedule_today": {
+        "name": "Schedule today",
+        "state": {
+          "scheduled": "Scheduled",
+          "none": "None"
+        }
+      },
+      "next_school_event": {
+        "name": "Next school event"
+      },
+      "next_schoolday": {
+        "name": "Next schoolday"
+      },
+      "timetable_today": {
+        "name": "Timetable today"
+      },
+      "timetable_tomorrow": {
+        "name": "Timetable tomorrow"
+      },
+      "api_mode": {
+        "name": "API mode",
+        "state": {
+          "full": "Full",
+          "limited": "Limited"
+        }
+      },
+      "last_successful_update": {
+        "name": "Last successful update"
+      }
     },
     "binary_sensor": {
-      "schoolday_today": {"name": "Schoolday"},
-      "schoolday_tomorrow": {"name": "Schoolday tomorrow"}
+      "schoolday_today": {
+        "name": "Schoolday"
+      },
+      "schoolday_tomorrow": {
+        "name": "Schoolday tomorrow"
+      }
     },
-    "calendar": {"school_calendar": {"name": "Academic calendar"}}
+    "calendar": {
+      "school_calendar": {
+        "name": "Academic calendar"
+      }
+    }
   },
   "issues": {
     "incomplete_data": {
