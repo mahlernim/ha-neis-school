@@ -1,6 +1,6 @@
 """Tests for schedule sensor presentation contracts."""
 
-from datetime import UTC, date, datetime
+from datetime import UTC, date, datetime, timedelta
 from types import SimpleNamespace
 from unittest.mock import AsyncMock
 
@@ -9,6 +9,7 @@ from custom_components.neis_school.const import (
     CONF_SCHOOL_HOMEPAGE,
     CONF_SCHOOL_KIND,
     CONF_SCHOOL_NAME,
+    SCHEDULE_LOOKAHEAD_DAYS,
 )
 from custom_components.neis_school.entity import _normalize_configuration_url
 from custom_components.neis_school.models import NeisResponse
@@ -79,6 +80,7 @@ async def test_calendar_reuses_an_identical_range_request() -> None:
         data=SimpleNamespace(
             local_date=date(2026, 8, 5),
             upcoming_schedule=NeisResponse.empty(),
+            schedules={},
         ),
         entry=SimpleNamespace(data={CONF_SCHOOL_NAME: "테스트학교"}),
     )
@@ -91,6 +93,51 @@ async def test_calendar_reuses_an_identical_range_request() -> None:
     assert await calendar.async_get_events(None, start, end) == []
     assert await calendar.async_get_events(None, start, end) == []
     assert api.get_schedule.await_count == 1
+
+
+async def test_calendar_fetches_beyond_actual_cached_dates_after_midnight() -> None:
+    """Moving the display date must not invent coverage for unfetched days."""
+    fetched_date = date(2026, 8, 5)
+    cached_end = fetched_date + timedelta(days=SCHEDULE_LOOKAHEAD_DAYS)
+    requested_date = cached_end + timedelta(days=1)
+    event = {
+        "AA_YMD": requested_date.strftime("%Y%m%d"),
+        "EVENT_NM": "학부모 상담",
+    }
+    api = SimpleNamespace(
+        has_api_key=True,
+        get_schedule=AsyncMock(
+            return_value=NeisResponse((event,), 1, True, "INFO-000")
+        ),
+    )
+    coordinator = SimpleNamespace(
+        api=api,
+        office_code="C10",
+        school_code="7201202",
+        grade=6,
+        data=SimpleNamespace(
+            local_date=fetched_date + timedelta(days=1),
+            upcoming_schedule=NeisResponse.empty(),
+            schedules={
+                fetched_date + timedelta(days=offset): NeisResponse.empty()
+                for offset in range(SCHEDULE_LOOKAHEAD_DAYS + 1)
+            },
+        ),
+        entry=SimpleNamespace(data={CONF_SCHOOL_NAME: "테스트학교"}),
+    )
+    calendar = object.__new__(NeisSchoolCalendar)
+    calendar.coordinator = coordinator
+    calendar._range_cache = {}
+    start = datetime.combine(requested_date, datetime.min.time(), tzinfo=UTC)
+
+    events = await calendar.async_get_events(None, start, start + timedelta(days=1))
+
+    api.get_schedule.assert_awaited_once_with(
+        "C10", "7201202", requested_date, requested_date
+    )
+    assert len(events) == 1
+    assert events[0].summary == "학부모 상담"
+    assert calendar._coordinator_response(cached_end, cached_end) is not None
 
 
 def test_empty_complete_timetable_remains_available() -> None:

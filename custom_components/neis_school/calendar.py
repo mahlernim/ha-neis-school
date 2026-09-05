@@ -10,7 +10,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from . import NeisSchoolConfigEntry
-from .const import CONF_SCHOOL_NAME, SCHEDULE_LOOKAHEAD_DAYS
+from .const import CONF_SCHOOL_NAME
 from .coordinator import NeisSchoolCoordinator
 from .entity import NeisSchoolEntity
 from .helpers import applicable_schedule_rows, parse_neis_date
@@ -99,11 +99,15 @@ class NeisSchoolCalendar(NeisSchoolEntity, CalendarEntity):
     ) -> NeisResponse | None:
         """Reuse the coordinator's complete lookahead whenever it covers the range."""
         data = self.coordinator.data
-        covered_end = data.local_date + timedelta(days=SCHEDULE_LOOKAHEAD_DAYS)
         if (
             data.upcoming_schedule.complete
-            and data.local_date <= start_date
-            and end_date <= covered_end
+            and start_date <= end_date
+            and all(
+                (response := data.schedules.get(start_date + timedelta(days=offset)))
+                is not None
+                and response.complete
+                for offset in range((end_date - start_date).days + 1)
+            )
         ):
             return data.upcoming_schedule
         return None

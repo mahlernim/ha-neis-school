@@ -73,7 +73,10 @@ class NeisSchoolCoordinator(DataUpdateCoordinator[NeisCoordinatorData]):
     async def async_initialize(self) -> None:
         """Restore a usable snapshot, then refresh without blocking startup."""
         stored = await self.store.async_load()
-        if stored:
+        if (
+            isinstance(stored, dict)
+            and stored.get("profile") == self._snapshot_profile()
+        ):
             try:
                 cached = NeisCoordinatorData.from_dict(stored["snapshot"])
             except (KeyError, TypeError, ValueError) as err:
@@ -94,11 +97,33 @@ class NeisSchoolCoordinator(DataUpdateCoordinator[NeisCoordinatorData]):
         else:
             await self.async_request_refresh()
 
-    def async_shutdown(self) -> None:
-        """Cancel any pending recovery refresh."""
+    async def async_shutdown(self) -> None:
+        """Cancel recovery and let Home Assistant stop pending refreshes."""
+        self._cancel_recovery_retry()
+        await super().async_shutdown()
+
+    def _cancel_recovery_retry(self) -> None:
+        """Cancel the recovery timer without disabling future updates."""
         if self._cancel_retry is not None:
             self._cancel_retry()
             self._cancel_retry = None
+
+    def _snapshot_profile(self) -> dict[str, str | int]:
+        """Identify the snapshot's school, student profile, and API mode."""
+        return {
+            CONF_OFFICE_CODE: self.office_code,
+            CONF_SCHOOL_CODE: self.school_code,
+            CONF_SCHOOL_KIND: self.school_kind,
+            CONF_GRADE: self.grade,
+            CONF_CLASS_NAME: self.class_name,
+            "api_mode": "full" if self.api.has_api_key else "limited",
+        }
+
+    async def _async_save_snapshot(self, data: NeisCoordinatorData) -> None:
+        """Store data with its profile so options changes cannot reuse old lessons."""
+        await self.store.async_save(
+            {"profile": self._snapshot_profile(), "snapshot": data.as_dict()}
+        )
 
     async def _async_update_data(self) -> NeisCoordinatorData:
         """Fetch meals, schedules, and timetables."""
@@ -129,6 +154,7 @@ class NeisSchoolCoordinator(DataUpdateCoordinator[NeisCoordinatorData]):
         for result in results:
             if isinstance(result, NeisAuthenticationError):
                 self._record_failure(result)
+                self._cancel_recovery_retry()
                 raise ConfigEntryAuthFailed(
                     "NEIS API key is invalid or restricted"
                 ) from result
@@ -195,7 +221,7 @@ class NeisSchoolCoordinator(DataUpdateCoordinator[NeisCoordinatorData]):
             self.last_error = None
             self.consecutive_failures = 0
             self.using_cached_data = False
-            self.async_shutdown()
+            self._cancel_recovery_retry()
         else:
             self.using_cached_data = True
         data = NeisCoordinatorData(
@@ -208,7 +234,7 @@ class NeisSchoolCoordinator(DataUpdateCoordinator[NeisCoordinatorData]):
             last_attempt=completed_at,
             incomplete_sources=sources,
         )
-        await self.store.async_save({"snapshot": data.as_dict()})
+        await self._async_save_snapshot(data)
         return data
 
     async def _async_update_limited(self, today: date) -> NeisCoordinatorData:
@@ -257,7 +283,7 @@ class NeisSchoolCoordinator(DataUpdateCoordinator[NeisCoordinatorData]):
                 last_attempt=dt_util.utcnow(),
                 incomplete_sources={"limited_mode_refresh"},
             )
-            await self.store.async_save({"snapshot": data.as_dict()})
+            await self._async_save_snapshot(data)
             return data
 
         (
@@ -287,7 +313,7 @@ class NeisSchoolCoordinator(DataUpdateCoordinator[NeisCoordinatorData]):
         self.last_error = None
         self.consecutive_failures = 0
         self.using_cached_data = False
-        self.async_shutdown()
+        self._cancel_recovery_retry()
         data = NeisCoordinatorData(
             local_date=today,
             meals={today: meals_today, tomorrow: meals_tomorrow},
@@ -298,7 +324,7 @@ class NeisSchoolCoordinator(DataUpdateCoordinator[NeisCoordinatorData]):
             last_attempt=completed_at,
             incomplete_sources=sources,
         )
-        await self.store.async_save({"snapshot": data.as_dict()})
+        await self._async_save_snapshot(data)
         return data
 
     def _source_or_cached(
@@ -351,8 +377,9 @@ class NeisSchoolCoordinator(DataUpdateCoordinator[NeisCoordinatorData]):
         )
 
     def _schedule_retry(self) -> None:
-        if self._cancel_retry is not None:
-            self._cancel_retry()
+        self._cancel_recovery_retry()
+        if self._shutdown_requested:
+            return
         delay = RETRY_DELAYS[min(self.consecutive_failures - 1, len(RETRY_DELAYS) - 1)]
 
         def _retry(_now) -> None:

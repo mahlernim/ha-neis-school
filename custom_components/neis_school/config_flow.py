@@ -116,6 +116,31 @@ def _profile_is_configured(
     )
 
 
+def _class_matches(
+    row: dict[str, Any],
+    office_code: str,
+    school_code: str,
+    academic_year: int,
+    grade: int,
+    class_name: str,
+) -> bool:
+    """Verify the requested class and any profile fields returned by NEIS."""
+    expected = {
+        "ATPT_OFCDC_SC_CODE": office_code,
+        "SD_SCHUL_CODE": school_code,
+        "AY": str(academic_year),
+        "GRADE": str(grade),
+    }
+    return (
+        bool(class_name)
+        and str(row.get("CLASS_NM") or "").strip() == class_name
+        and all(
+            field not in row or str(row[field]).strip() == value
+            for field, value in expected.items()
+        )
+    )
+
+
 class NeisSchoolConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     """Handle a NEIS School config flow."""
 
@@ -126,10 +151,13 @@ class NeisSchoolConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         self._api_key: str | None = None
         self._api: NeisAPI | None = None
         self._office_code = ""
+        self._school_query = ""
         self._schools: dict[str, dict[str, Any]] = {}
         self._school: dict[str, Any] = {}
         self._grade = 0
         self._class_name = ""
+        self._class_choices: dict[str, str] = {}
+        self._resume_step: str | None = None
 
     async def async_step_user(
         self, user_input: dict[str, Any] | None = None
@@ -143,12 +171,33 @@ class NeisSchoolConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             else:
                 self._api_key = value or None
                 self._api = NeisAPI(async_get_clientsession(self.hass), self._api_key)
+                resume_step, self._resume_step = self._resume_step, None
+                if resume_step == "class":
+                    self._class_choices = {}
+                    return await self.async_step_class()
+                if resume_step == "school":
+                    return await self.async_step_school(
+                        {
+                            CONF_OFFICE_CODE: self._office_code,
+                            CONF_SCHOOL_NAME: self._school_query,
+                        }
+                    )
                 return await self.async_step_school()
 
         return self.async_show_form(
             step_id="user",
             data_schema=_credentials_schema(),
             errors=errors,
+            description_placeholders={"api_key_url": API_KEY_URL},
+        )
+
+    def _retry_credentials(self, resume_step: str, error: str) -> ConfigFlowResult:
+        """Allow a key correction without discarding the user's setup progress."""
+        self._resume_step = resume_step
+        return self.async_show_form(
+            step_id="user",
+            data_schema=_credentials_schema(),
+            errors={CONF_API_KEY if error == "invalid_auth" else "base": error},
             description_placeholders={"api_key_url": API_KEY_URL},
         )
 
@@ -159,14 +208,17 @@ class NeisSchoolConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         errors: dict[str, str] = {}
         if user_input is not None:
             self._office_code = str(user_input[CONF_OFFICE_CODE])
+            self._school_query = str(user_input[CONF_SCHOOL_NAME]).strip()
             if self._api is None:
                 return self.async_abort(reason="unknown")
+            if not self._school_query:
+                return self._show_school_form({CONF_SCHOOL_NAME: "required"})
             try:
                 result = await self._api.search_schools(
-                    self._office_code, str(user_input[CONF_SCHOOL_NAME]).strip()
+                    self._office_code, self._school_query
                 )
             except NeisAuthenticationError:
-                errors["base"] = "invalid_auth"
+                return self._retry_credentials("school", "invalid_auth")
             except NeisRateLimitError:
                 errors["base"] = "rate_limited"
             except NeisApiError:
@@ -174,6 +226,8 @@ class NeisSchoolConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             except NeisConnectionError:
                 errors["base"] = "cannot_connect"
             else:
+                if not result.complete:
+                    return self._show_school_form({"base": "incomplete_school_search"})
                 supported = {
                     str(row["SD_SCHUL_CODE"]): row
                     for row in result.rows
@@ -188,13 +242,27 @@ class NeisSchoolConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                         return await self._after_school_selected()
                     return await self.async_step_select_school()
 
+        return self._show_school_form(errors)
+
+    def _show_school_form(self, errors: dict[str, str]) -> ConfigFlowResult:
+        """Preserve non-secret search fields when the user retries."""
         schema = vol.Schema(
             {
                 vol.Required(CONF_OFFICE_CODE): vol.In(OFFICES),
                 vol.Required(CONF_SCHOOL_NAME): str,
             }
         )
-        return self.async_show_form(step_id="school", data_schema=schema, errors=errors)
+        return self.async_show_form(
+            step_id="school",
+            data_schema=self.add_suggested_values_to_schema(
+                schema,
+                {
+                    CONF_OFFICE_CODE: self._office_code,
+                    CONF_SCHOOL_NAME: self._school_query,
+                },
+            ),
+            errors=errors,
+        )
 
     async def async_step_select_school(
         self, user_input: dict[str, Any] | None = None
@@ -214,7 +282,19 @@ class NeisSchoolConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
     async def _after_school_selected(self) -> ConfigFlowResult:
         """Continue with the student profile after selecting a school."""
+        self._class_choices = {}
+        self._class_name = ""
         return await self.async_step_grade()
+
+    def _profile_placeholders(self) -> dict[str, str]:
+        """Keep school and academic-year context visible throughout setup."""
+        return {
+            "school_name": str(self._school.get("SCHUL_NM") or ""),
+            "school_address": str(self._school.get("ORG_RDNMA") or ""),
+            "academic_year": str(_academic_year()),
+            "grade": str(self._grade),
+            "class_name": self._class_name,
+        }
 
     async def async_step_grade(
         self, user_input: dict[str, Any] | None = None
@@ -222,105 +302,118 @@ class NeisSchoolConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         """Collect the student's grade."""
         if user_input is not None:
             self._grade = int(user_input[CONF_GRADE])
+            self._class_choices = {}
             return await self.async_step_class()
         return self.async_show_form(
             step_id="grade",
             data_schema=vol.Schema(
                 {
-                    vol.Required(CONF_GRADE): _grade_schema(
-                        str(self._school["SCHUL_KND_SC_NM"])
-                    )
+                    vol.Required(
+                        CONF_GRADE, default=str(self._grade or 1)
+                    ): _grade_schema(str(self._school["SCHUL_KND_SC_NM"]))
                 }
             ),
+            description_placeholders=self._profile_placeholders(),
         )
 
     async def async_step_class(
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
-        """Choose or enter a class and validate it."""
-        errors: dict[str, str] = {}
+        """Choose a class, retry its lookup, or correct the selected grade."""
         if self._api is None:
             return self.async_abort(reason="unknown")
-        if user_input is None and self._api.has_api_key:
-            try:
-                result = await self._api.get_classes(
-                    self._office_code,
-                    str(self._school["SD_SCHUL_CODE"]),
-                    _academic_year(),
-                    self._grade,
-                )
-            except NeisAuthenticationError:
-                return self.async_show_form(
-                    step_id="class",
-                    data_schema=vol.Schema({vol.Required(CONF_CLASS_NAME): str}),
-                    errors={"base": "invalid_auth"},
-                )
-            except NeisRateLimitError:
-                return self.async_show_form(
-                    step_id="class",
-                    data_schema=vol.Schema({vol.Required(CONF_CLASS_NAME): str}),
-                    errors={"base": "rate_limited"},
-                )
-            except NeisConnectionError:
-                return self.async_show_form(
-                    step_id="class",
-                    data_schema=vol.Schema({vol.Required(CONF_CLASS_NAME): str}),
-                    errors={"base": "cannot_connect"},
-                )
-            except NeisApiError:
-                return self.async_show_form(
-                    step_id="class",
-                    data_schema=vol.Schema({vol.Required(CONF_CLASS_NAME): str}),
-                    errors={"base": "api_error"},
-                )
-            if not result.complete:
-                return self.async_show_form(
-                    step_id="class",
-                    data_schema=vol.Schema({vol.Required(CONF_CLASS_NAME): str}),
-                    errors={"base": "incomplete_data"},
-                )
-            choices = {
-                str(row["CLASS_NM"]): str(row["CLASS_NM"]) for row in result.rows
-            }
-            if choices:
-                return self.async_show_form(
-                    step_id="class",
-                    data_schema=vol.Schema(
-                        {vol.Required(CONF_CLASS_NAME): vol.In(choices)}
-                    ),
-                )
-
+        errors: dict[str, str] = {}
         if user_input is not None:
-            class_name = str(user_input[CONF_CLASS_NAME]).strip()
-            try:
-                result = await self._api.get_classes(
-                    self._office_code,
-                    str(self._school["SD_SCHUL_CODE"]),
-                    _academic_year(),
-                    self._grade,
-                    class_name,
-                )
-            except NeisAuthenticationError:
-                errors["base"] = "invalid_auth"
-            except NeisRateLimitError:
-                errors["base"] = "rate_limited"
-            except NeisConnectionError:
-                errors["base"] = "cannot_connect"
-            except NeisApiError:
-                errors["base"] = "api_error"
+            grade = int(user_input.get(CONF_GRADE, self._grade))
+            if grade != self._grade:
+                self._grade = grade
+                self._class_name = ""
+                self._class_choices = {}
+                return await self.async_step_class()
+            # A failed list lookup shows only the grade and can be retried as-is.
+            if self._api.has_api_key and not self._class_choices:
+                user_input = None
             else:
-                if not result.rows:
-                    errors["base"] = "class_not_found"
-                elif not result.complete:
-                    errors["base"] = "incomplete_data"
-                else:
-                    self._class_name = class_name
-                    return await self.async_step_meals()
+                self._class_name = str(user_input.get(CONF_CLASS_NAME, "")).strip()
+                if not self._class_name:
+                    return self._show_class_form({CONF_CLASS_NAME: "required"})
 
+        if user_input is None and not self._api.has_api_key:
+            return self._show_class_form(errors)
+        try:
+            result = await self._api.get_classes(
+                self._office_code,
+                str(self._school["SD_SCHUL_CODE"]),
+                _academic_year(),
+                self._grade,
+                self._class_name if user_input is not None else None,
+            )
+        except NeisAuthenticationError:
+            return self._retry_credentials("class", "invalid_auth")
+        except NeisRateLimitError:
+            errors["base"] = "rate_limited"
+        except NeisConnectionError:
+            errors["base"] = "cannot_connect"
+        except NeisApiError:
+            errors["base"] = "api_error"
+        else:
+            if not result.complete:
+                if not self._api.has_api_key:
+                    return self._retry_credentials("class", "incomplete_data")
+                errors["base"] = "incomplete_data"
+            elif user_input is None:
+                self._class_choices = {
+                    name: name
+                    for row in result.rows
+                    if (name := str(row.get("CLASS_NM") or "").strip())
+                    and self._matches_class(row, name)
+                }
+                if not self._class_choices:
+                    errors["base"] = "classes_unavailable"
+            elif not any(
+                self._matches_class(row, self._class_name) for row in result.rows
+            ):
+                errors[CONF_CLASS_NAME] = "class_not_found"
+            else:
+                return await self.async_step_meals()
+
+        return self._show_class_form(errors)
+
+    def _matches_class(self, row: dict[str, Any], class_name: str) -> bool:
+        return _class_matches(
+            row,
+            self._office_code,
+            str(self._school["SD_SCHUL_CODE"]),
+            _academic_year(),
+            self._grade,
+            class_name,
+        )
+
+    def _show_class_form(self, errors: dict[str, str]) -> ConfigFlowResult:
+        """Retain valid class choices and allow grade correction on the same form."""
+        schema = {
+            vol.Required(CONF_GRADE, default=str(self._grade)): _grade_schema(
+                str(self._school["SCHUL_KND_SC_NM"])
+            )
+        }
+        if self._class_choices:
+            field = vol.Optional(CONF_CLASS_NAME)
+            if self._class_name in self._class_choices:
+                field = vol.Optional(CONF_CLASS_NAME, default=self._class_name)
+            schema[field] = vol.In(self._class_choices)
+        elif self._api is not None and not self._api.has_api_key:
+            schema[vol.Optional(CONF_CLASS_NAME)] = str
         return self.async_show_form(
             step_id="class",
-            data_schema=vol.Schema({vol.Required(CONF_CLASS_NAME): str}),
+            data_schema=self.add_suggested_values_to_schema(
+                vol.Schema(schema),
+                {CONF_CLASS_NAME: self._class_name}
+                if self._class_name
+                and (not self._class_choices or self._class_name in self._class_choices)
+                else {},
+            ),
             errors=errors,
+            description_placeholders=self._profile_placeholders(),
         )
 
     async def async_step_meals(
@@ -355,7 +448,7 @@ class NeisSchoolConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 },
             )
         return self.async_show_form(
-            step_id="meals",
+            step_id="meals" if self._api and self._api.has_api_key else "meals_limited",
             data_schema=vol.Schema(
                 {
                     vol.Required(
@@ -363,7 +456,14 @@ class NeisSchoolConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     ): _meal_schema()
                 }
             ),
+            description_placeholders=self._profile_placeholders(),
         )
+
+    async def async_step_meals_limited(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Use localized limited-mode guidance on the same final setup form."""
+        return await self.async_step_meals(user_input)
 
     async def async_step_reauth(
         self, _entry_data: Mapping[str, Any]
@@ -445,6 +545,11 @@ class NeisSchoolOptionsFlow(config_entries.OptionsFlow):
         errors: dict[str, str] = {}
         current = self.config_entry.options
         if user_input is not None:
+            class_name = str(user_input[CONF_CLASS_NAME]).strip()
+            if not class_name:
+                return self._show_options_form(
+                    user_input, {CONF_CLASS_NAME: "required"}
+                )
             api_key = self.config_entry.data.get(
                 CONF_API_KEY, current.get(CONF_API_KEY)
             )
@@ -455,7 +560,7 @@ class NeisSchoolOptionsFlow(config_entries.OptionsFlow):
                     str(self.config_entry.data[CONF_SCHOOL_CODE]),
                     _academic_year(),
                     int(user_input[CONF_GRADE]),
-                    str(user_input[CONF_CLASS_NAME]).strip(),
+                    class_name,
                 )
             except NeisAuthenticationError:
                 errors["base"] = "invalid_auth"
@@ -466,10 +571,20 @@ class NeisSchoolOptionsFlow(config_entries.OptionsFlow):
             except NeisApiError:
                 errors["base"] = "api_error"
             else:
-                if not result.rows:
-                    errors["base"] = "class_not_found"
-                elif not result.complete:
+                if not result.complete:
                     errors["base"] = "incomplete_data"
+                elif not any(
+                    _class_matches(
+                        row,
+                        str(self.config_entry.data[CONF_OFFICE_CODE]),
+                        str(self.config_entry.data[CONF_SCHOOL_CODE]),
+                        _academic_year(),
+                        int(user_input[CONF_GRADE]),
+                        class_name,
+                    )
+                    for row in result.rows
+                ):
+                    errors[CONF_CLASS_NAME] = "class_not_found"
                 elif _profile_is_configured(
                     self.hass,
                     str(self.config_entry.data[CONF_OFFICE_CODE]),
@@ -522,4 +637,12 @@ class NeisSchoolOptionsFlow(config_entries.OptionsFlow):
                 ): _meal_schema(),
             }
         )
-        return self.async_show_form(step_id="init", data_schema=schema, errors=errors)
+        return self.async_show_form(
+            step_id="init",
+            data_schema=schema,
+            errors=errors,
+            description_placeholders={
+                "school_name": str(self.config_entry.data[CONF_SCHOOL_NAME]),
+                "academic_year": str(_academic_year()),
+            },
+        )

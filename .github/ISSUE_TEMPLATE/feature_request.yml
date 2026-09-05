@@ -1,17 +1,19 @@
-name: 기능 제안
-description: 공개 NEIS 데이터를 활용한 새 기능을 제안해 주세요
-title: "[기능] "
+name: 기능 제안 / Feature request
+description: 공개 NEIS 데이터를 활용한 기능을 제안하세요 / Suggest a feature using public NEIS data
 labels: [enhancement]
 body:
+  - type: markdown
+    attributes:
+      value: 한국어 또는 영어로 작성하세요. / Korean or English is welcome.
   - type: textarea
     id: use_case
     attributes:
-      label: Home Assistant 활용 방법
-      description: 이 기능이 어떤 자동화나 화면에 도움이 되는지 설명해 주세요.
+      label: 활용 방법 / Use case
+      description: 원하는 결과와 현재 해결 방법을 설명하세요. / Describe your desired outcome and current workaround.
     validations:
       required: true
   - type: input
     id: endpoint
     attributes:
-      label: 공식 NEIS API 또는 문서
-      description: 관련 공개 API나 문서 링크가 있다면 적어주세요.
+      label: 공식 NEIS API 또는 문서 / Official API or documentation
+      description: 관련 공개 API나 문서 링크가 있다면 적어주세요. / Link relevant public APIs or documentation, if known.

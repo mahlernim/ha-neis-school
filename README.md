@@ -6,13 +6,14 @@
 
 <p align="center">
   우리 학교의 급식, 시간표, 학사일정과 등교 정보를 Home Assistant에서 확인하고 자동화하세요.
+  <br>School meals, timetables, and academic schedules from Korea's public NEIS data.
 </p>
 
 <p align="center">
   <a href="https://github.com/mahlernim/ha-neis-school/releases"><img alt="최신 릴리스" src="https://img.shields.io/github/v/release/mahlernim/ha-neis-school"></a>
   <a href="https://github.com/mahlernim/ha-neis-school/actions/workflows/validate.yml"><img alt="검증 상태" src="https://github.com/mahlernim/ha-neis-school/actions/workflows/validate.yml/badge.svg"></a>
   <img alt="Home Assistant 2025.12 이상" src="https://img.shields.io/badge/Home%20Assistant-2025.12%2B-18BCF2?logo=home-assistant&logoColor=white">
-  <img alt="HACS 통합 구성요소" src="https://img.shields.io/badge/HACS-Integration-41BDF5?logo=home-assistant-community-store&logoColor=white">
+  <img alt="HACS 사용자 지정 저장소" src="https://img.shields.io/badge/HACS-Custom-41BDF5?logo=home-assistant-community-store&logoColor=white">
   <a href="LICENSE"><img alt="MIT 라이선스" src="https://img.shields.io/github/license/mahlernim/ha-neis-school"></a>
 </p>
 
@@ -25,7 +26,9 @@
   </a>
 </p>
 
-<p align="center"><a href="#english">English summary</a></p>
+<p align="center"><a href="#한국어">한국어</a> · <a href="#english">English</a></p>
+
+## 한국어
 
 **홈어시스턴트 나이스 학교생활**은 교육부 NEIS 교육정보 개방 포털의 공개
 데이터를 Home Assistant에 연결하는 비공식 통합 구성요소입니다. 학교를 한 번
@@ -46,6 +49,7 @@
 ## 요구 사항
 
 - Home Assistant 2025.12.0 이상
+- NEIS에 등록된 국내 초등학교·중학교·고등학교·특수학교
 - NEIS 서비스에 연결할 수 있는 인터넷 환경
 - 완전한 데이터 조회를 위한 무료 NEIS 인증키 사용 권장
 
@@ -54,7 +58,8 @@
 ### HACS
 
 1. 위의 **HACS에서 저장소 열기** 버튼을 선택합니다.
-2. 아직 기본 저장소에 표시되지 않는 경우 HACS 사용자 지정 저장소로 추가합니다.
+2. HACS에서 찾을 수 없으면 점 3개 메뉴의 **사용자 지정 저장소**에
+   `https://github.com/mahlernim/ha-neis-school`을 **통합 구성요소** 유형으로 추가하세요.
 3. **홈어시스턴트 나이스 학교생활**을 다운로드합니다.
 4. Home Assistant를 다시 시작합니다.
 5. 위의 **Home Assistant에 추가** 버튼을 선택하거나 **설정 → 기기 및 서비스
@@ -74,9 +79,17 @@
 1. NEIS 인증키를 입력하거나, 인증키 없이 사용할 경우 제한 모드의 주의사항을
    확인합니다.
 2. 시도교육청을 선택하고 학교 이름을 검색합니다.
-3. 검색 결과에서 학교를 선택합니다.
-4. 학년과 반을 선택합니다.
-5. 사용할 급식 유형을 선택합니다. 기본값은 중식입니다.
+3. 검색 결과의 학교 이름과 주소를 확인하세요. 결과가 일부만 반환되면 학교
+   이름을 더 구체적으로 입력해 다시 검색하세요.
+4. 화면에 표시된 학년도에 맞는 학년과 반을 선택하세요. 1~2월에는 이전 연도
+   학년을 사용합니다. 제한 모드에서는 반 이름을 직접 입력합니다.
+5. 마지막 화면에서 학교·주소·학년도·학년·반과 연결 모드를 확인하고 사용할
+   급식 유형을 선택하세요. 기본값은 중식이며 학사일정 캘린더는 기본 비활성입니다.
+
+인증키 오류가 나면 같은 설정 과정에서 키를 고칠 수 있습니다. 학교 검색어,
+학년과 반 선택은 유지됩니다. 반 목록 조회가 실패하면 같은 학년으로 다시
+제출하거나 학년을 바꿔 조회하세요. 새 학년도 자료가 아직 공개되지 않았다면
+나중에 다시 시도해야 합니다.
 
 설정이 끝나면 선택한 학교·학년·반이 하나의 기기로 추가되고 관련 엔티티가
 자동으로 생성됩니다. 같은 학교에 다니는 자녀도 학년이나 반이 다르면 각각
@@ -90,8 +103,9 @@
 자동화에 사용하지 않도록 관련 엔티티를 `unavailable`로 표시합니다.
 
 안정적인 시간표, 학사일정과 캘린더 사용을 위해 무료 인증키를 권장합니다.
+캘린더와 다음 학교행사·다음 등교일 조회에는 인증키가 필요합니다.
 
-통합 구성요소는 7일간의 급식·시간표와 90일간의 학사일정을 날짜별로 저장하고
+인증키를 사용하는 전체 모드에서는 7일간의 급식·시간표와 90일간의 학사일정을 날짜별로 저장하고
 매일 오전과 오후에 갱신합니다. 날짜가 바뀔 때는 저장된 다음 날 자료를 즉시
 표시하므로 자정의 일시적인 NEIS 장애 때문에 모든 엔티티가 사라지지 않습니다.
 연결이 실패하면 짧은 간격으로 다시 시도하며, 일부 자료만 실패한 경우에는 정상
@@ -146,14 +160,22 @@ TTS 엔진과 스피커 엔티티 ID만 바꾸어 사용할 수 있습니다.
 - 인증키가 만료되거나 제한되면 Home Assistant가 **재인증 필요**를 표시합니다.
   새 인증키를 입력하거나 제한 모드 사용을 확인하세요.
 - 학교나 반을 찾을 수 없으면 학교 이름, 교육청, 학년과 반을 다시 확인합니다.
+  새 학년도 자료가 아직 공개되지 않은 경우도 있습니다.
 - 재시작 후 통합 구성요소가 검색되지 않으면 Home Assistant 화면을 새로 고치거나
   브라우저 캐시를 지운 뒤 다시 검색합니다.
 - 문제가 계속되면 **설정 → 기기 및 서비스 → 홈어시스턴트 나이스 학교생활
   → 점 3개 메뉴 → 진단 정보 다운로드**에서 진단 파일을 저장합니다.
 - [GitHub Issues](https://github.com/mahlernim/ha-neis-school/issues)에 Home
   Assistant 버전, 통합 구성요소 버전, 증상과 진단 파일을 첨부합니다.
+  한국어와 영어 모두 사용할 수 있습니다.
 
 진단 정보에서는 인증키, 학교 코드·이름, 홈페이지와 주소를 자동으로 가립니다.
+
+### 업데이트
+
+HACS에서 업데이트한 뒤 Home Assistant를 다시 시작하세요. 0.1.4에서는 기존
+설정과 엔티티 ID를 유지하며, 이전 버전의 캐시는 첫 실행 때 새로 조회합니다.
+이때 NEIS 연결이 실패하면 처음 데이터를 표시하기까지 시간이 걸릴 수 있습니다.
 
 ## 개인정보 보호
 
@@ -167,14 +189,84 @@ NEIS School is an unofficial Home Assistant integration for Korea's public
 education data. It provides school search, meals, schooldays, academic events,
 class timetables, TTS-ready text, and an optional read-only calendar.
 
-Version 0.1.2 stores date-indexed rolling snapshots, refreshes them twice per
-day, projects the next cached date at midnight, and retries temporary failures
-without discarding complete data from unaffected NEIS endpoints.
+### Requirements and installation
 
-Install it with HACS, restart Home Assistant, and add **NEIS School** from
-**Settings → Devices & services**. A free NEIS API key is recommended because
-unauthenticated requests may return incomplete sample data. Home Assistant
-2025.12.0 or newer is required.
+Home Assistant 2025.12.0 or newer, internet access to NEIS, and an elementary,
+middle, high, or special school in Korea with published NEIS records are required.
+A [free NEIS API key](https://open.neis.go.kr/portal/guide/actKeyPage.do) is recommended.
+
+1. Open the repository using the HACS button above. If it is not found, add
+   `https://github.com/mahlernim/ha-neis-school` under HACS **Custom repositories**
+   with type **Integration**.
+2. Download NEIS School and restart Home Assistant.
+3. Go to **Settings → Devices & services → Add integration** and select
+   **NEIS School**, or use the Add integration button above. The button starts
+   setup; it does not download the integration.
+
+For manual installation, copy `custom_components/neis_school` into your Home
+Assistant configuration's `custom_components` directory, then restart and add
+the integration.
+
+### First setup and everyday use
+
+1. Enter an API key or acknowledge the limitations of using no key.
+2. Choose an education office and search for the school's Korean name. Check the
+   name and address. If results are incomplete, use a more specific name.
+3. Select the grade and class for the academic year shown. January and February
+   belong to the previous calendar year's academic year. Limited mode requires
+   entering the class name manually.
+4. Check the final school, address, academic year, grade, class, and connection-mode
+   summary, then select meals. Lunch is selected by default.
+
+You can correct a rejected key without restarting setup. Non-secret inputs are
+retained after errors. If class lookup fails, submit the same grade to retry or
+change the grade to load another list. New academic-year records may not be
+published yet.
+
+Each school/grade/class profile becomes a device; different classes can have
+separate entries. Use **Configure** to change grade, class, or meals and
+**Reconfigure** to change the API key or switch to limited mode. The read-only
+academic calendar starts disabled; enable it from the entity list if needed.
+
+Meals expose `available` or `no_meal`, timetables report the number of valid
+lessons, schedules expose `scheduled` or `none`, and schoolday binary sensors use
+`on` or `off`. Check actual entity IDs in **Developer tools → States** before
+creating automations. The `menu_tts`, `timetable_tts`, and `schedule_tts` attributes
+provide Korean announcement text; [automation examples](docs/automation-examples.md)
+are available in Korean.
+
+### Data availability and privacy
+
+Without a key, NEIS may return incomplete samples. Affected entities become
+`unavailable`; the calendar, upcoming events, and next schoolday require a key.
+With a key, the integration caches seven days of meals and timetables and 90 days
+of schedules, refreshes twice daily, and switches to the next cached date at
+midnight. Temporary failures trigger retries while retaining complete cached data
+for the current profile.
+
+Schoolday estimates depend on published school schedules and may differ from
+actual attendance days. Check school notices for important wake-up or attendance
+automations.
+
+Only public NEIS data is used. The integration cannot access student names,
+attendance records, grades, teachers, homework, or private school notices. API keys
+are excluded from entity states, logs, and diagnostics. Downloaded diagnostics
+also redact school identifiers, names, websites, and addresses.
+
+### Updates and support
+
+Update through HACS, then restart Home Assistant. Version 0.1.4 preserves existing
+settings and entity IDs but fetches fresh data instead of restoring older cache
+files on the first startup. A NEIS outage can delay this first successful load.
+
+For `unavailable` data, check the NEIS connection and API key. Follow Home
+Assistant's reauthentication prompt when a key is rejected. If the integration is
+missing after installation and restart, refresh the browser or clear its cache.
+
+Report persistent problems in [GitHub Issues](https://github.com/mahlernim/ha-neis-school/issues)
+in Korean or English. Include both Home Assistant and integration versions,
+reproduction steps, and a diagnostic download from the integration's three-dot
+menu. Never include your API key. See the [changelog](CHANGELOG.md) for release history.
 
 ## 라이선스
 

@@ -1,5 +1,37 @@
 # Changelog
 
+## 0.1.4
+
+### Changed
+
+- Recover from rejected API keys during setup while retaining the selected school
+  and student profile. Preserve search inputs and class choices after failures.
+- Allow class lookup retries and grade correction on the same form. Explain
+  academic-year timing, incomplete responses, and records not yet published.
+- Show the school, address, academic year, grade, class, and connection mode before
+  completing setup, with calendar availability explained.
+- Expand Korean and English setup documentation and welcome issues in either language.
+
+### Fixed
+
+- Reject blank or mismatched classes in setup and options, and require complete
+  school search results before selecting a school.
+- Restore cached data only when its school, grade, class, and API mode match the
+  current configuration, preventing a previous profile's timetable from appearing
+  after an options change. Older snapshots are refreshed once before reuse.
+- Shut down Home Assistant's pending refreshes when an entry unloads, and prevent
+  late failures from restarting recovery. Stop transient-error retries when the
+  API key needs reauthentication.
+- Check the actual cached schedule dates before reusing calendar data, so midnight
+  rollover cannot hide events just beyond the fetched range.
+
+## 0.1.3
+
+### Fixed
+
+- Recognize opening-day events as schooldays even when their names contain the
+  Korean word for vacation, and include them in next-schoolday results.
+
 ## 0.1.2
 
 ### Changed
