@@ -4,8 +4,6 @@ on:
   push:
     branches: [main]
   pull_request:
-  schedule:
-    - cron: "17 3 * * 1"
   workflow_dispatch:
 
 permissions:
@@ -45,7 +43,7 @@ jobs:
       - uses: actions/checkout@v7
       - uses: actions/setup-python@v7
         with:
-          python-version: "3.13.2"
+          python-version: "3.13"
           cache: pip
       - run: >-
           pip install -r requirements_test.txt
